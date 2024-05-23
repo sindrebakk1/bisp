@@ -1,15 +1,15 @@
-package tcp_test
+package bisp_test
 
 import (
+	"github.com/sindrebakk1/bisp"
 	"github.com/stretchr/testify/assert"
 	"net"
-	"tcp"
 	"testing"
 )
 
 func TestNewEncoder(t *testing.T) {
 	_, server := net.Pipe()
-	encoder := tcp.NewEncoder(server)
+	encoder := bisp.NewEncoder(server)
 	assert.NotNil(t, encoder)
 	server.Close()
 }
@@ -17,15 +17,15 @@ func TestNewEncoder(t *testing.T) {
 func TestEncodeHeader(t *testing.T) {
 	_, server := net.Pipe()
 
-	header := tcp.Header{
-		Version:       tcp.V1,
-		Flags:         tcp.FError | tcp.FHuff | tcp.FTransactionID,
+	header := bisp.Header{
+		Version:       bisp.V1,
+		Flags:         bisp.FError | bisp.FHuff | bisp.FTransactionID,
 		Type:          1,
-		TransactionID: tcp.TransactionID(make([]byte, tcp.TransactionIDSize)),
+		TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
 		Length:        5,
 	}
 
-	encoder := tcp.NewEncoder(server)
+	encoder := bisp.NewEncoder(server)
 	bytes, err := encoder.EncodeHeader(&header)
 	assert.NoError(t, err)
 
@@ -77,7 +77,7 @@ func TestEncodeBody_Slice(t *testing.T) {
 		B string
 		C bool
 	}
-	tcp.RegisterType(testStruct2{})
+	bisp.RegisterType(testStruct2{})
 	testCases := []testCase{
 		{value: []int{1, 2, 3}, name: "int slice"},
 		{value: []uint{4, 5, 6}, name: "uint slice"},
@@ -124,13 +124,13 @@ func TestEncodeBody_Struct(t *testing.T) {
 		b string
 		c bool
 	}
-	tcp.RegisterType(testStruct2{})
-	tcp.RegisterType(testStructSliceField2{})
-	tcp.RegisterType(testStructStructField2{})
-	tcp.RegisterType(testStructStructFieldSliceField2{})
-	tcp.RegisterType(testStructEmbeddedPrivateStruct2{})
-	tcp.RegisterType(testStructEmbeddedStruct2{})
-	tcp.RegisterType(testStructPrivateFields2{})
+	bisp.RegisterType(testStruct2{})
+	bisp.RegisterType(testStructSliceField2{})
+	bisp.RegisterType(testStructStructField2{})
+	bisp.RegisterType(testStructStructFieldSliceField2{})
+	bisp.RegisterType(testStructEmbeddedPrivateStruct2{})
+	bisp.RegisterType(testStructEmbeddedStruct2{})
+	bisp.RegisterType(testStructPrivateFields2{})
 	testCases := []testCase{
 		{value: testStruct2{1, "a", true}, name: "struct"},
 		{value: testStructSliceField2{[]int{1, 2, 3}}, name: "struct with slice"},
@@ -145,15 +145,15 @@ func TestEncodeBody_Struct(t *testing.T) {
 
 func TestEncodeMessage_String(t *testing.T) {
 	client, server := net.Pipe()
-	message := &tcp.Message{
-		Header: tcp.Header{
-			Flags:         tcp.FTransactionID,
-			TransactionID: tcp.TransactionID(make([]byte, tcp.TransactionIDSize)),
+	message := &bisp.Message{
+		Header: bisp.Header{
+			Flags:         bisp.FTransactionID,
+			TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
 		},
 		Body: "Hello",
 	}
 	go func() {
-		encoder := tcp.NewEncoder(server)
+		encoder := bisp.NewEncoder(server)
 		err := encoder.Encode(message)
 		assert.NoError(t, err)
 		server.Close()
@@ -175,7 +175,7 @@ func testEncodeBody(t *testing.T, testCases []testCase) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, server := net.Pipe()
 
-			encoder := tcp.NewEncoder(server)
+			encoder := bisp.NewEncoder(server)
 
 			_, bytes, err := encoder.EncodeBody(tc.value)
 			assert.NoError(t, err)

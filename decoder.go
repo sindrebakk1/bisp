@@ -1,4 +1,4 @@
-package tcp
+package bisp
 
 import (
 	"bytes"

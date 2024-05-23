@@ -1,40 +1,40 @@
-package tcp_test
+package bisp_test
 
 import (
+	"github.com/sindrebakk1/bisp"
 	"github.com/stretchr/testify/assert"
 	"net"
-	"tcp"
 	"testing"
 )
 
 func TestEncodeDecodeMessage_String(t *testing.T) {
 	tcs := []testCase{
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: "Hello",
 			},
 			name: "Hello",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: "World",
 			},
 			name: "World",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: "GoLang!%&",
 			},
 			name: "GoLang",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: "12345",
 			},
 			name: "number string",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: "",
 			},
 			name: "empty string",
@@ -46,73 +46,73 @@ func TestEncodeDecodeMessage_String(t *testing.T) {
 func TestEncodeDecodeMessage_Numbers(t *testing.T) {
 	tcs := []testCase{
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: 1234,
 			},
 			name: "int",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: uint8(123),
 			},
 			name: "uint8",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: uint16(1234),
 			},
 			name: "uint16",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: uint32(1234),
 			},
 			name: "uint32",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: uint64(1234),
 			},
 			name: "uint64",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: int8(123),
 			},
 			name: "int8",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: int16(1234),
 			},
 			name: "int16",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: int32(12345),
 			},
 			name: "int32",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: int64(123456),
 			},
 			name: "int64",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: float32(1234.567),
 			},
 			name: "float32",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: uint16(1234),
 			},
 			name: "uint16",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: float64(1234.567),
 			},
 			name: "float64",
@@ -124,13 +124,13 @@ func TestEncodeDecodeMessage_Numbers(t *testing.T) {
 func TestEncodeDecodeMessage_Boolean(t *testing.T) {
 	tcs := []testCase{
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: false,
 			},
 			name: "false",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: true,
 			},
 			name: "true",
@@ -145,46 +145,46 @@ func TestEncodeDecodeMessage_Slice(t *testing.T) {
 		B string
 		C bool
 	}
-	tcp.RegisterType(testStruct3{})
+	bisp.RegisterType(testStruct3{})
 	tcs := []testCase{
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: []int{1, 2, 3},
 			},
 			name: "int slice",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: []uint{4, 5, 6},
 			},
 			name: "uint slice",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: []float32{1.1, 2.2, 3.3},
 			},
 			name: "float32 slice",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: []float64{4.4, 5.5, 6.6},
 			},
 			name: "float64 slice",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: []string{"a", "b", "c"},
 			},
 			name: "string slice",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: []bool{true, false, true},
 			},
 			name: "bool slice",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: []testStruct3{{1, "a", true}, {2, "B", false}},
 			},
 			name: "struct slice",
@@ -227,56 +227,56 @@ func TestEncodeDecodeMessage_Struct(t *testing.T) {
 		b string
 		c bool
 	}
-	tcp.RegisterType(testStruct3{})
-	tcp.RegisterType(testStructSliceField3{})
-	tcp.RegisterType(testStructStructField3{})
-	tcp.RegisterType(testStructStructFieldSliceField3{})
-	tcp.RegisterType(testStructEmbeddedPrivateStruct3{})
-	tcp.RegisterType(testStructEmbeddedStruct3{})
-	tcp.RegisterType(testStructPrivateFields3{})
+	bisp.RegisterType(testStruct3{})
+	bisp.RegisterType(testStructSliceField3{})
+	bisp.RegisterType(testStructStructField3{})
+	bisp.RegisterType(testStructStructFieldSliceField3{})
+	bisp.RegisterType(testStructEmbeddedPrivateStruct3{})
+	bisp.RegisterType(testStructEmbeddedStruct3{})
+	bisp.RegisterType(testStructPrivateFields3{})
 
 	var (
-		testStructEmbeddedPrivateStruct3ID tcp.TypeID
-		testStructPrivateFields3ID         tcp.TypeID
+		testStructEmbeddedPrivateStruct3ID bisp.TypeID
+		testStructPrivateFields3ID         bisp.TypeID
 		err                                error
 	)
-	testStructEmbeddedPrivateStruct3ID, err = tcp.GetIDFromType(testStructEmbeddedPrivateStruct3{})
+	testStructEmbeddedPrivateStruct3ID, err = bisp.GetIDFromType(testStructEmbeddedPrivateStruct3{})
 	assert.NoError(t, err)
-	testStructPrivateFields3ID, err = tcp.GetIDFromType(testStructPrivateFields3{})
+	testStructPrivateFields3ID, err = bisp.GetIDFromType(testStructPrivateFields3{})
 	assert.NoError(t, err)
 
 	tcs := []testCase{
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: testStruct3{1, "a", true},
 			},
 			name: "struct",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: testStructSliceField3{[]int{1, 2, 3}},
 			},
 			name: "struct with slice",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: testStructStructField3{testStruct3{1, "a", true}, "b"},
 			},
 			name: "struct with struct",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: testStructStructFieldSliceField3{[]testStruct3{{1, "a", true}, {1, "a", true}}},
 			},
 			name: "struct with struct slice",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: testStructEmbeddedPrivateStruct3{testStruct3{1, "a", true}, "b"},
 			},
-			expected: tcp.Message{
-				Header: tcp.Header{
-					Version: tcp.V1,
+			expected: bisp.Message{
+				Header: bisp.Header{
+					Version: bisp.V1,
 					Type:    testStructEmbeddedPrivateStruct3ID,
 					Length:  0x3,
 				},
@@ -285,18 +285,18 @@ func TestEncodeDecodeMessage_Struct(t *testing.T) {
 			name: "struct with embedded private struct",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: testStructEmbeddedStruct3{TestStruct3{1, "a", true}, "b"},
 			},
 			name: "struct with embedded struct",
 		},
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: testStructPrivateFields3{1, "a", true},
 			},
-			expected: tcp.Message{
-				Header: tcp.Header{
-					Version: tcp.V1,
+			expected: bisp.Message{
+				Header: bisp.Header{
+					Version: bisp.V1,
 					Type:    testStructPrivateFields3ID,
 					Length:  0,
 				},
@@ -311,11 +311,11 @@ func TestEncodeDecodeMessage_Struct(t *testing.T) {
 func TestEncodeDecodeMessage_Header(t *testing.T) {
 	tcs := []testCase{
 		{
-			value: tcp.Message{
-				Header: tcp.Header{
-					Version:       tcp.V1,
-					Flags:         tcp.FTransactionID | tcp.FError,
-					TransactionID: tcp.TransactionID(make([]byte, tcp.TransactionIDSize)),
+			value: bisp.Message{
+				Header: bisp.Header{
+					Version:       bisp.V1,
+					Flags:         bisp.FTransactionID | bisp.FError,
+					TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
 					Type:          0,
 					Length:        0,
 				},
@@ -324,17 +324,17 @@ func TestEncodeDecodeMessage_Header(t *testing.T) {
 			name: "all fields",
 		},
 		{
-			value: tcp.Message{
-				Header: tcp.Header{
-					TransactionID: tcp.TransactionID(make([]byte, tcp.TransactionIDSize)),
+			value: bisp.Message{
+				Header: bisp.Header{
+					TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
 				},
 				Body: "Hello",
 			},
 			name: "transaction id",
 		},
 		{
-			value: tcp.Message{
-				Header: tcp.Header{},
+			value: bisp.Message{
+				Header: bisp.Header{},
 				Body:   "Hello",
 			},
 			name: "empty",
@@ -346,13 +346,13 @@ func TestEncodeDecodeMessage_Header(t *testing.T) {
 func TestEncodeDecodeMessage_Nil(t *testing.T) {
 	tcs := []testCase{
 		{
-			value: tcp.Message{
+			value: bisp.Message{
 				Body: nil,
 			},
 			name: "nil",
 		},
 		{
-			value: tcp.Message{},
+			value: bisp.Message{},
 			name:  "empty initializer",
 		},
 	}
@@ -368,25 +368,25 @@ func testEncodeDecodeMessages(t *testing.T, tcs []testCase) {
 }
 
 func testEncodeMessage(t *testing.T, tc testCase) {
-	msg := tc.value.(tcp.Message)
+	msg := tc.value.(bisp.Message)
 	client, server := net.Pipe()
 	// Write to server
 	go func() {
-		encoder := tcp.NewEncoder(server)
+		encoder := bisp.NewEncoder(server)
 		err := encoder.Encode(&msg)
 		assert.NoError(t, err)
 		server.Close()
 	}()
 
 	// Read from client
-	decoder := tcp.NewDecoder(client)
-	var res tcp.Message
+	decoder := bisp.NewDecoder(client)
+	var res bisp.Message
 	err := decoder.Decode(&res)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 	expected := msg
 	if tc.expected != nil {
-		expected = tc.expected.(tcp.Message)
+		expected = tc.expected.(bisp.Message)
 	}
 	assert.Equal(t, expected, res)
 }

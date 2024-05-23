@@ -1,4 +1,4 @@
-package tcp
+package bisp
 
 const (
 	VersionSize       = 1

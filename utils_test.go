@@ -1,10 +1,10 @@
-package tcp_test
+package bisp_test
 
 import (
 	"bytes"
 	"encoding/binary"
+	"github.com/sindrebakk1/bisp"
 	"reflect"
-	"tcp"
 )
 
 type testCase struct {
@@ -13,13 +13,13 @@ type testCase struct {
 	expected any
 }
 
-func encodeTestHeader(header *tcp.Header) []byte {
-	headerBytes := make([]byte, tcp.HeaderSizeWithTransactionID)
+func encodeTestHeader(header *bisp.Header) []byte {
+	headerBytes := make([]byte, bisp.HeaderSizeWithTransactionID)
 	headerBytes[0] = byte(header.Version)
-	headerBytes[tcp.VersionSize] = byte(header.Flags)
-	binary.BigEndian.PutUint16(headerBytes[tcp.VersionSize+tcp.FlagsSize:], uint16(header.Type))
-	copy(headerBytes[tcp.VersionSize+tcp.FlagsSize+tcp.TypeIDSize:], header.TransactionID[:])
-	binary.BigEndian.PutUint16(headerBytes[tcp.VersionSize+tcp.FlagsSize+tcp.TypeIDSize+tcp.TransactionIDSize:], uint16(header.Length))
+	headerBytes[bisp.VersionSize] = byte(header.Flags)
+	binary.BigEndian.PutUint16(headerBytes[bisp.VersionSize+bisp.FlagsSize:], uint16(header.Type))
+	copy(headerBytes[bisp.VersionSize+bisp.FlagsSize+bisp.TypeIDSize:], header.TransactionID[:])
+	binary.BigEndian.PutUint16(headerBytes[bisp.VersionSize+bisp.FlagsSize+bisp.TypeIDSize+bisp.TransactionIDSize:], uint16(header.Length))
 
 	return headerBytes
 }
