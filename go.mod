@@ -1,4 +1,4 @@
-module bisp
+module github.com/sindrebakk1/bisp
 
 go 1.22.1
 
