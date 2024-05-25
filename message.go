@@ -23,10 +23,10 @@ const (
 	FError Flag = 1 << iota
 	// FHuff Flag is set if the message body is compressed using huffman encoding.
 	FHuff Flag = 1 << 1
-	// FTransactionID Flag is set if the message contains a transaction ID.
-	FTransactionID Flag = 1 << 2
-	// FBigLengths Flag is set to use 32 bit lengths instead of 16 bit for strings, slices and maps.
-	FBigLengths Flag = 1 << 3
+	// FTransaction Flag is set if the message contains a transaction ID.
+	FTransaction Flag = 1 << 2
+	// F32BitLengths Flag is set to use 32 bit lengths instead of 16 bit for strings, slices and maps.
+	F32BitLengths Flag = 1 << 3
 )
 
 const HeaderSize = VersionSize + FlagsSize + TypeIDSize + LengthSize

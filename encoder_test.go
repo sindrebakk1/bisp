@@ -19,7 +19,7 @@ func TestEncodeHeader(t *testing.T) {
 
 	header := bisp.Header{
 		Version:       bisp.V1,
-		Flags:         bisp.FError | bisp.FHuff | bisp.FTransactionID,
+		Flags:         bisp.FError | bisp.FHuff | bisp.FTransaction,
 		Type:          1,
 		TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
 		Length:        5,
@@ -165,7 +165,7 @@ func TestEncodeMessage_String(t *testing.T) {
 	client, server := net.Pipe()
 	message := &bisp.Message{
 		Header: bisp.Header{
-			Flags:         bisp.FTransactionID,
+			Flags:         bisp.FTransaction,
 			TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
 		},
 		Body: "Hello",

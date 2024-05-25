@@ -49,7 +49,7 @@ func (d *Decoder) Decode(msg *Message) error {
 		return err
 	}
 	var body interface{}
-	body, err = d.DecodeBody(header.Type, uint16(header.Length), header.HasFlag(FBigLengths))
+	body, err = d.DecodeBody(header.Type, uint16(header.Length), header.HasFlag(F32BitLengths))
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func (d *Decoder) DecodeHeader() (*Header, error) {
 	if typeID, err = d.decodeUint16(reflect.ValueOf(typeID), false); err != nil {
 		return nil, err
 	}
-	if (Flag(flags) & FTransactionID) == FTransactionID {
+	if (Flag(flags) & FTransaction) == FTransaction {
 		tIDReader := io.LimitReader(d.reader, TransactionIDSize)
 		n, err = io.Copy(d.buf, tIDReader)
 		var tn int

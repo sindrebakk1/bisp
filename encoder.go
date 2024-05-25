@@ -52,7 +52,7 @@ func (e *Encoder) Encode(m *Message) error {
 		msgBytes   []byte
 		bodyLength int
 	)
-	bodyLength, bodyBuf, err = e.EncodeBody(m.Body, m.Header.HasFlag(FBigLengths))
+	bodyLength, bodyBuf, err = e.EncodeBody(m.Body, m.Header.HasFlag(F32BitLengths))
 	if err != nil {
 		return err
 	}
@@ -96,9 +96,9 @@ func (e *Encoder) EncodeHeader(h *Header) ([]byte, error) {
 		}
 	}
 	if hasTransactionID {
-		h.SetFlag(FTransactionID)
+		h.SetFlag(FTransaction)
 	}
-	if h.HasFlag(FTransactionID) {
+	if h.HasFlag(FTransaction) {
 		if err = binary.Write(buf, binary.BigEndian, h.TransactionID); err != nil {
 			return nil, err
 		}
@@ -181,7 +181,7 @@ func (e *Encoder) encodeLength(value int, bigLengths bool) error {
 		return fmt.Errorf("length %d is too large, max: %d", value, 1<<32)
 	}
 	if bigLengths && value > 1<<16 {
-		return fmt.Errorf("length %d is too large, max: %d. consider setting the FBigLengths flag", value, 1<<16)
+		return fmt.Errorf("length %d is too large, max: %d. consider setting the F32BitLengths flag", value, 1<<16)
 	}
 	if bigLengths {
 		return binary.Write(e.buf, binary.BigEndian, uint32(value))

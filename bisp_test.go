@@ -314,7 +314,7 @@ func TestEncodeDecodeMessage_Header(t *testing.T) {
 			value: bisp.Message{
 				Header: bisp.Header{
 					Version:       bisp.V1,
-					Flags:         bisp.FTransactionID | bisp.FError,
+					Flags:         bisp.FTransaction | bisp.FError,
 					TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
 					Type:          0,
 					Length:        0,
@@ -384,7 +384,7 @@ func TestEncodeDecodeMessage_Enum(t *testing.T) {
 				Body: testStructEnum{
 					TestEnum1,
 					TestEnum2,
-					make([]TestEnum, 4),
+					[]TestEnum{TestEnum1, TestEnum2, TestEnum3},
 				},
 			},
 			name: "struct with enums and enum slice",

@@ -19,7 +19,7 @@ func TestDecodeHeader(t *testing.T) {
 
 	header := &bisp.Header{
 		Version:       bisp.V1,
-		Flags:         bisp.FError | bisp.FHuff | bisp.FTransactionID,
+		Flags:         bisp.FError | bisp.FHuff | bisp.FTransaction,
 		Type:          1,
 		TransactionID: bisp.TransactionID(make([]byte, 32)),
 		Length:        5,
@@ -165,7 +165,7 @@ func TestDecodeMessage_String(t *testing.T) {
 	testMsg := bisp.Message{
 		Header: bisp.Header{
 			Version:       bisp.V1,
-			Flags:         bisp.FTransactionID,
+			Flags:         bisp.FTransaction,
 			TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
 		},
 		Body: "Hello",
