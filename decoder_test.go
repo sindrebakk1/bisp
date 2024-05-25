@@ -149,6 +149,18 @@ func TestDecodeBody_Struct(t *testing.T) {
 	testDecodeBody(t, testCases)
 }
 
+func TestDecodeBody_Map(t *testing.T) {
+	bisp.RegisterType(map[int]string{})
+	bisp.RegisterType(map[TestEnum]string{})
+	bisp.RegisterType(map[string]int{})
+	testCases := []testCase{
+		{value: map[int]string{1: "a", 2: "b", 3: "c"}, name: "int > string map"},
+		{value: map[TestEnum]string{TestEnum1: "a", TestEnum2: "b", TestEnum3: "c"}, name: "enum > string map"},
+		{value: map[string]int{"a": 1, "b": 2, "c": 3}, name: "string > int map"},
+	}
+	testDecodeBody(t, testCases)
+}
+
 func TestDecodeMessage_String(t *testing.T) {
 	testMsg := bisp.Message{
 		Header: bisp.Header{
@@ -160,7 +172,7 @@ func TestDecodeMessage_String(t *testing.T) {
 	}
 	typeID, err := bisp.GetIDFromType(testMsg.Body)
 	assert.Nil(t, err)
-	bodyBytes, err := encodeTestValue("Hello")
+	bodyBytes, err := encodeTestValue("Hello", false)
 	assert.Nil(t, err)
 	testMsg.Header.Type = typeID
 	testMsg.Header.Length = bisp.Length(len(bodyBytes))
@@ -186,7 +198,7 @@ func TestDecodeMessage_String(t *testing.T) {
 func testDecodeBody(t *testing.T, testCases []testCase) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			encoded, err := encodeTestValue(tc.value)
+			encoded, err := encodeTestValue(tc.value, false)
 			assert.Nil(t, err)
 
 			client, server := net.Pipe()
@@ -200,9 +212,10 @@ func testDecodeBody(t *testing.T, testCases []testCase) {
 
 			var typeID bisp.TypeID
 			typeID, err = bisp.GetIDFromType(tc.value)
+			assert.Nil(t, err)
 
 			var res interface{}
-			res, err = decoder.DecodeBody(typeID, uint16(len(encoded)))
+			res, err = decoder.DecodeBody(typeID, uint16(len(encoded)), false)
 			assert.Nil(t, err)
 			expected := tc.value
 			if tc.expected != nil {

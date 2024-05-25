@@ -57,8 +57,8 @@ func TestEncodeBody_Numbers(t *testing.T) {
 		{value: int64(8), name: "int64"},
 		{value: 9, name: "int"},
 		{value: uint(10), name: "uint"},
-		{value: float32(11.2), name: "float32"},
-		{value: float64(12.3), name: "float64"},
+		{value: float32(11.1), name: "float32"},
+		{value: float64(12.2), name: "float64"},
 	}
 	testEncodeBody(t, testCases)
 }
@@ -143,6 +143,24 @@ func TestEncodeBody_Struct(t *testing.T) {
 	testEncodeBody(t, testCases)
 }
 
+func TestEncodeBody_Enum(t *testing.T) {
+	testCases := []testCase{
+		{value: TestEnum1, name: "TestEnum21"},
+		{value: TestEnum2, name: "TestEnum22"},
+		{value: TestEnum3, name: "TestEnum23"},
+	}
+	testEncodeBody(t, testCases)
+}
+
+func TestEncodeBody_Map(t *testing.T) {
+	testCases := []testCase{
+		{value: map[int]string{1: "a"}, name: "int > string map"},
+		{value: map[TestEnum]string{TestEnum1: "a"}, name: "enum > string map"},
+		{value: map[string]int{"a": 1}, name: "string > int map"},
+	}
+	testEncodeBody(t, testCases)
+}
+
 func TestEncodeMessage_String(t *testing.T) {
 	client, server := net.Pipe()
 	message := &bisp.Message{
@@ -162,7 +180,8 @@ func TestEncodeMessage_String(t *testing.T) {
 	_, err := client.Read(bytes)
 	assert.NoError(t, err)
 	expected := encodeTestHeader(&message.Header)
-	b, err := encodeTestValue("Hello")
+	var b []byte
+	b, err = encodeTestValue("Hello", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +196,7 @@ func testEncodeBody(t *testing.T, testCases []testCase) {
 
 			encoder := bisp.NewEncoder(server)
 
-			_, bytes, err := encoder.EncodeBody(tc.value)
+			_, bytes, err := encoder.EncodeBody(tc.value, false)
 			assert.NoError(t, err)
 
 			expected := tc.value
@@ -185,7 +204,7 @@ func testEncodeBody(t *testing.T, testCases []testCase) {
 				expected = tc.expected
 			}
 			var expectedBytes []byte
-			expectedBytes, err = encodeTestValue(expected)
+			expectedBytes, err = encodeTestValue(expected, false)
 			assert.Equal(t, expectedBytes, bytes)
 
 			server.Close()

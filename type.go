@@ -2,6 +2,7 @@ package bisp
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 )
 
@@ -16,13 +17,12 @@ func RegisterType(value interface{}) TypeID {
 	if _, ok := typeRegistry[t]; !ok {
 		typeRegistry[t] = nextID
 		reverseRegistry[nextID] = t
+
 		nextID++
 	}
-	if t != nil && t.Kind() != reflect.Slice && t.Kind() != reflect.Array {
+	if t != nil && t.Kind() != reflect.Slice && t.Kind() != reflect.Array && t.Kind() != reflect.Map {
 		slice := reflect.New(reflect.SliceOf(t)).Elem().Interface()
-		arr := reflect.New(reflect.ArrayOf(1, t)).Elem().Interface()
 		RegisterType(slice)
-		RegisterType(arr)
 	}
 	return typeRegistry[t]
 }
@@ -35,20 +35,34 @@ func GetIDFromType(value interface{}) (TypeID, error) {
 	return ID, nil
 }
 
-func GetIDFromTypeValue(value reflect.Type) (TypeID, error) {
-	ID, exists := typeRegistry[value]
-	if !exists {
-		return 0, errors.New("type not registered")
-	}
-	return ID, nil
-}
-
 func GetTypeFromID(id TypeID) (reflect.Type, error) {
 	typ, exists := reverseRegistry[id]
 	if !exists {
 		return nil, errors.New("type not registered")
 	}
 	return typ, nil
+}
+
+func SyncTypeRegistry(other map[reflect.Type]TypeID) []error {
+	errs := make([]error, 0)
+	for typ, id := range other {
+		if _, ok := typeRegistry[typ]; !ok {
+			errs = append(errs, errors.New(fmt.Sprintf("type %s not registered", typ)))
+		} else {
+			typeRegistry[typ] = id
+			reverseRegistry[id] = typ
+		}
+	}
+	for typ, _ := range typeRegistry {
+		if _, ok := other[typ]; !ok {
+			errs = append(errs, errors.New(fmt.Sprintf("type %s registered locally, but is not supported by server", typ)))
+		}
+	}
+	return errs
+}
+
+func GetTypeRegistry() map[reflect.Type]TypeID {
+	return typeRegistry
 }
 
 func init() {

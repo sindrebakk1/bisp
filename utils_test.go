@@ -36,7 +36,7 @@ func encodeTestHeader(header *bisp.Header) []byte {
 	return headerBytes
 }
 
-func encodeTestValue(testValue any) ([]byte, error) {
+func encodeTestValue(testValue any, bigLengths bool) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	t := reflect.TypeOf(testValue)
@@ -52,7 +52,7 @@ func encodeTestValue(testValue any) ([]byte, error) {
 		}
 		break
 	case reflect.String:
-		if err := binary.Write(buf, binary.BigEndian, uint16(len(testValue.(string)))); err != nil {
+		if err := encodeLength(buf, len(testValue.(string)), bigLengths); err != nil {
 			return nil, err
 		}
 		if err := binary.Write(buf, binary.BigEndian, []byte(testValue.(string))); err != nil {
@@ -61,13 +61,12 @@ func encodeTestValue(testValue any) ([]byte, error) {
 		break
 	case reflect.Slice:
 		slice := reflect.ValueOf(testValue)
-		if err := binary.Write(buf, binary.BigEndian, uint32(slice.Len())); err != nil {
+		if err := encodeLength(buf, slice.Len(), bigLengths); err != nil {
 			return nil, err
 		}
 		for i := 0; i < slice.Len(); i++ {
 			v := slice.Index(i).Interface()
-			var encodedBytes []byte
-			encodedBytes, err := encodeTestValue(v)
+			encodedBytes, err := encodeTestValue(v, bigLengths)
 			if err != nil {
 				return nil, err
 			}
@@ -84,13 +83,34 @@ func encodeTestValue(testValue any) ([]byte, error) {
 			var err error
 			var encodedBytes []byte
 			if fieldType.IsExported() {
-				encodedBytes, err = encodeTestValue(fieldVal.Interface())
+				encodedBytes, err = encodeTestValue(fieldVal.Interface(), bigLengths)
 				if err != nil {
 					return nil, err
 				}
 				if _, err = buf.Write(encodedBytes); err != nil {
 					return nil, err
 				}
+			}
+		}
+	case reflect.Map:
+		m := reflect.ValueOf(testValue)
+		if err := encodeLength(buf, m.Len(), bigLengths); err != nil {
+			return nil, err
+		}
+		for _, key := range m.MapKeys() {
+			keyBytes, err := encodeTestValue(key.Interface(), bigLengths)
+			if err != nil {
+				return nil, err
+			}
+			if _, err = buf.Write(keyBytes); err != nil {
+				return nil, err
+			}
+			valBytes, err := encodeTestValue(m.MapIndex(key).Interface(), bigLengths)
+			if err != nil {
+				return nil, err
+			}
+			if _, err = buf.Write(valBytes); err != nil {
+				return nil, err
 			}
 		}
 	default:
@@ -101,4 +121,21 @@ func encodeTestValue(testValue any) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func encodeLength(buf *bytes.Buffer, length int, bigLengths bool) error {
+	if bigLengths {
+		if err := binary.Write(buf, binary.BigEndian, uint32(length)); err != nil {
+			return err
+		}
+	} else {
+		if err := binary.Write(buf, binary.BigEndian, uint16(length)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func init() {
+	bisp.RegisterType(TestEnum(0))
 }

@@ -8,7 +8,7 @@ import (
 	"reflect"
 )
 
-type decoderFunc func(*Decoder, reflect.Value) (interface{}, error)
+type decoderFunc func(*Decoder, reflect.Value, bool) (interface{}, error)
 
 type Decoder struct {
 	buf               *bytes.Buffer
@@ -20,23 +20,24 @@ func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{
 		buf: new(bytes.Buffer),
 		primitiveDecoders: map[reflect.Kind]decoderFunc{
-			reflect.Uint:    func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeUint(v) },
-			reflect.Uint8:   func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeUint8(v) },
-			reflect.Uint16:  func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeUint16(v) },
-			reflect.Uint32:  func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeUint32(v) },
-			reflect.Uint64:  func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeUint64(v) },
-			reflect.Int8:    func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeInt8(v) },
-			reflect.Int:     func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeInt(v) },
-			reflect.Int16:   func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeInt16(v) },
-			reflect.Int32:   func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeInt32(v) },
-			reflect.Int64:   func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeInt64(v) },
-			reflect.Float32: func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeFloat32(v) },
-			reflect.Float64: func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeFloat64(v) },
-			reflect.Bool:    func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeBool(v) },
-			reflect.String:  func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeString(v) },
-			reflect.Slice:   func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeArrayOrSlice(v) },
-			reflect.Array:   func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeArrayOrSlice(v) },
-			reflect.Struct:  func(d *Decoder, v reflect.Value) (interface{}, error) { return d.decodeStruct(v) },
+			reflect.Uint:    func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeUint(v, b) },
+			reflect.Uint8:   func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeUint8(v, b) },
+			reflect.Uint16:  func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeUint16(v, b) },
+			reflect.Uint32:  func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeUint32(v, b) },
+			reflect.Uint64:  func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeUint64(v, b) },
+			reflect.Int8:    func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeInt8(v, b) },
+			reflect.Int:     func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeInt(v, b) },
+			reflect.Int16:   func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeInt16(v, b) },
+			reflect.Int32:   func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeInt32(v, b) },
+			reflect.Int64:   func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeInt64(v, b) },
+			reflect.Float32: func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeFloat32(v, b) },
+			reflect.Float64: func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeFloat64(v, b) },
+			reflect.Bool:    func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeBool(v, b) },
+			reflect.String:  func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeString(v, b) },
+			reflect.Slice:   func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeArrayOrSlice(v, b) },
+			reflect.Array:   func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeArrayOrSlice(v, b) },
+			reflect.Struct:  func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeStruct(v, b) },
+			reflect.Map:     func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeMap(v, b) },
 		},
 		reader: r,
 	}
@@ -48,7 +49,7 @@ func (d *Decoder) Decode(msg *Message) error {
 		return err
 	}
 	var body interface{}
-	body, err = d.DecodeBody(header.Type, uint16(header.Length))
+	body, err = d.DecodeBody(header.Type, uint16(header.Length), header.HasFlag(FBigLengths))
 	if err != nil {
 		return err
 	}
@@ -75,16 +76,16 @@ func (d *Decoder) DecodeHeader() (*Header, error) {
 		transID [TransactionIDSize]byte
 		length  uint16
 	)
-	if version, err = d.decodeUint8(reflect.ValueOf(version)); err != nil {
+	if version, err = d.decodeUint8(reflect.ValueOf(version), false); err != nil {
 		return nil, err
 	}
 	if Version(version) != CurrentVersion {
 		return nil, errors.New("unsupported version")
 	}
-	if flags, err = d.decodeUint8(reflect.ValueOf(flags)); err != nil {
+	if flags, err = d.decodeUint8(reflect.ValueOf(flags), false); err != nil {
 		return nil, err
 	}
-	if typeID, err = d.decodeUint16(reflect.ValueOf(typeID)); err != nil {
+	if typeID, err = d.decodeUint16(reflect.ValueOf(typeID), false); err != nil {
 		return nil, err
 	}
 	if (Flag(flags) & FTransactionID) == FTransactionID {
@@ -98,7 +99,7 @@ func (d *Decoder) DecodeHeader() (*Header, error) {
 			return nil, errors.New("unexpected end of transaction ID")
 		}
 	}
-	if length, err = d.decodeUint16(reflect.ValueOf(length)); err != nil {
+	if length, err = d.decodeUint16(reflect.ValueOf(length), false); err != nil {
 		return nil, err
 	}
 
@@ -111,7 +112,7 @@ func (d *Decoder) DecodeHeader() (*Header, error) {
 	return &header, nil
 }
 
-func (d *Decoder) DecodeBody(typeID TypeID, length uint16) (interface{}, error) {
+func (d *Decoder) DecodeBody(typeID TypeID, length uint16, bigLengths bool) (interface{}, error) {
 	limitReader := io.LimitReader(d.reader, int64(length))
 	n, err := io.Copy(d.buf, limitReader)
 	if err != nil {
@@ -133,15 +134,15 @@ func (d *Decoder) DecodeBody(typeID TypeID, length uint16) (interface{}, error) 
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
 	}
-	if err = d.decodeValue(val); err != nil {
+	if err = d.decodeValue(val, bigLengths); err != nil {
 		return nil, err
 	}
 	return val.Interface(), nil
 }
 
-func (d *Decoder) decodeValue(v reflect.Value) error {
+func (d *Decoder) decodeValue(v reflect.Value, bigLengths bool) error {
 	if decoder, ok := d.primitiveDecoders[v.Kind()]; ok {
-		val, err := decoder(d, v)
+		val, err := decoder(d, v, bigLengths)
 		if err != nil {
 			return err
 		}
@@ -152,87 +153,96 @@ func (d *Decoder) decodeValue(v reflect.Value) error {
 	}
 }
 
-func (d *Decoder) decodeUint(_ reflect.Value) (uint, error) {
+func (d *Decoder) decodeLength(v reflect.Value, bigLengths bool) (int, error) {
+	if bigLengths {
+		len32, err := d.decodeUint32(v, bigLengths)
+		return int(len32), err
+	}
+	len16, err := d.decodeUint16(v, bigLengths)
+	return int(len16), err
+}
+
+func (d *Decoder) decodeUint(_ reflect.Value, _ bool) (uint, error) {
 	var value uint64
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return uint(value), err
 }
 
-func (d *Decoder) decodeUint8(_ reflect.Value) (uint8, error) {
+func (d *Decoder) decodeUint8(_ reflect.Value, _ bool) (uint8, error) {
 	var value uint8
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return value, err
 }
 
-func (d *Decoder) decodeUint16(_ reflect.Value) (uint16, error) {
+func (d *Decoder) decodeUint16(_ reflect.Value, _ bool) (uint16, error) {
 	var value uint16
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return value, err
 }
 
-func (d *Decoder) decodeUint32(_ reflect.Value) (uint32, error) {
+func (d *Decoder) decodeUint32(_ reflect.Value, _ bool) (uint32, error) {
 	var value uint32
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return value, err
 }
 
-func (d *Decoder) decodeUint64(_ reflect.Value) (uint64, error) {
+func (d *Decoder) decodeUint64(_ reflect.Value, _ bool) (uint64, error) {
 	var value uint64
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return value, err
 }
 
-func (d *Decoder) decodeInt(_ reflect.Value) (int, error) {
+func (d *Decoder) decodeInt(_ reflect.Value, _ bool) (int, error) {
 	var value int64
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return int(value), err
 }
 
-func (d *Decoder) decodeInt8(_ reflect.Value) (int8, error) {
+func (d *Decoder) decodeInt8(_ reflect.Value, _ bool) (int8, error) {
 	var value int8
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return value, err
 }
 
-func (d *Decoder) decodeInt16(_ reflect.Value) (int16, error) {
+func (d *Decoder) decodeInt16(_ reflect.Value, _ bool) (int16, error) {
 	var value int16
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return value, err
 }
 
-func (d *Decoder) decodeInt32(_ reflect.Value) (int32, error) {
+func (d *Decoder) decodeInt32(_ reflect.Value, _ bool) (int32, error) {
 	var value int32
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return value, err
 }
 
-func (d *Decoder) decodeInt64(_ reflect.Value) (int64, error) {
+func (d *Decoder) decodeInt64(_ reflect.Value, _ bool) (int64, error) {
 	var value int64
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return value, err
 }
 
-func (d *Decoder) decodeFloat32(_ reflect.Value) (float32, error) {
+func (d *Decoder) decodeFloat32(_ reflect.Value, _ bool) (float32, error) {
 	var value float32
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return value, err
 }
 
-func (d *Decoder) decodeFloat64(_ reflect.Value) (float64, error) {
+func (d *Decoder) decodeFloat64(_ reflect.Value, _ bool) (float64, error) {
 	var value float64
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return value, err
 }
 
-func (d *Decoder) decodeBool(_ reflect.Value) (bool, error) {
+func (d *Decoder) decodeBool(_ reflect.Value, _ bool) (bool, error) {
 	var value bool
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return value, err
 
 }
 
-func (d *Decoder) decodeString(v reflect.Value) (string, error) {
-	length, err := d.decodeUint16(v)
+func (d *Decoder) decodeString(v reflect.Value, bigLengths bool) (string, error) {
+	length, err := d.decodeLength(v, bigLengths)
 	if err != nil {
 		return "", err
 	}
@@ -241,10 +251,10 @@ func (d *Decoder) decodeString(v reflect.Value) (string, error) {
 	return string(buf), err
 }
 
-func (d *Decoder) decodeArrayOrSlice(v reflect.Value) (interface{}, error) {
+func (d *Decoder) decodeArrayOrSlice(v reflect.Value, bigLengths bool) (interface{}, error) {
 	t := v.Type()
 	elType := t.Elem()
-	length, err := d.decodeUint32(v)
+	length, err := d.decodeLength(v, bigLengths)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +268,7 @@ func (d *Decoder) decodeArrayOrSlice(v reflect.Value) (interface{}, error) {
 	}
 	for i := 0; i < int(length); i++ {
 		var val interface{}
-		val, err = decoder(d, reflect.New(elType).Elem())
+		val, err = decoder(d, reflect.New(elType).Elem(), bigLengths)
 		if err != nil {
 			return nil, err
 		}
@@ -267,7 +277,7 @@ func (d *Decoder) decodeArrayOrSlice(v reflect.Value) (interface{}, error) {
 	return slice.Interface(), nil
 }
 
-func (d *Decoder) decodeStruct(v reflect.Value) (interface{}, error) {
+func (d *Decoder) decodeStruct(v reflect.Value, bigLengths bool) (interface{}, error) {
 	msgType := v.Type()
 	structPtr := reflect.New(msgType)
 	structValue := structPtr.Elem()
@@ -279,7 +289,7 @@ func (d *Decoder) decodeStruct(v reflect.Value) (interface{}, error) {
 		}
 		fieldKind := fieldVal.Kind()
 		field := structValue.Field(i)
-		newFieldValue, err := d.primitiveDecoders[fieldKind](d, field)
+		newFieldValue, err := d.primitiveDecoders[fieldKind](d, field, bigLengths)
 		if err != nil {
 			return nil, err
 		}
@@ -289,4 +299,49 @@ func (d *Decoder) decodeStruct(v reflect.Value) (interface{}, error) {
 	}
 
 	return structPtr.Elem().Interface(), nil
+}
+
+func (d *Decoder) decodeMap(v reflect.Value, bigLengths bool) (interface{}, error) {
+	mapType := v.Type()
+	mapVal := reflect.MakeMap(mapType)
+	keyType := mapType.Key()
+	valueType := mapType.Elem()
+	length, err := d.decodeLength(v, bigLengths)
+	if err != nil {
+		return nil, err
+	}
+	if length == 0 {
+		return mapVal.Interface(), nil
+	}
+	var (
+		keyDecoder   decoderFunc
+		valueDecoder decoderFunc
+		ok           bool
+	)
+	keyDecoder, ok = d.primitiveDecoders[keyType.Kind()]
+	if !ok {
+		return nil, errors.New("unsupported key type")
+	}
+	valueDecoder, ok = d.primitiveDecoders[valueType.Kind()]
+	if !ok {
+		return nil, errors.New("unsupported value type")
+	}
+	for i := 0; i < length; i++ {
+		key := reflect.New(keyType).Elem()
+		value := reflect.New(valueType).Elem()
+		var (
+			newKey   interface{}
+			newValue interface{}
+		)
+		newKey, err = keyDecoder(d, key, bigLengths)
+		if err != nil {
+			return nil, err
+		}
+		newValue, err = valueDecoder(d, value, bigLengths)
+		if err != nil {
+			return nil, err
+		}
+		mapVal.SetMapIndex(reflect.ValueOf(newKey).Convert(keyType), reflect.ValueOf(newValue).Convert(valueType))
+	}
+	return mapVal.Interface(), nil
 }

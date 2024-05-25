@@ -9,7 +9,7 @@ import (
 	"reflect"
 )
 
-type encoderFunc func(*Encoder, interface{}) error
+type encoderFunc func(*Encoder, interface{}, bool) error
 
 type Encoder struct {
 	buf               *bytes.Buffer
@@ -21,23 +21,24 @@ func NewEncoder(w io.Writer) *Encoder {
 	return &Encoder{
 		buf: new(bytes.Buffer),
 		primitiveEncoders: map[reflect.Kind]encoderFunc{
-			reflect.Uint:    func(e *Encoder, value interface{}) error { return e.encodeUint(value.(uint)) },
-			reflect.Uint8:   func(e *Encoder, value interface{}) error { return e.encodeUint8(value.(uint8)) },
-			reflect.Uint16:  func(e *Encoder, value interface{}) error { return e.encodeUint16(value.(uint16)) },
-			reflect.Uint32:  func(e *Encoder, value interface{}) error { return e.encodeUint32(value.(uint32)) },
-			reflect.Uint64:  func(e *Encoder, value interface{}) error { return e.encodeUint64(value.(uint64)) },
-			reflect.Int:     func(e *Encoder, value interface{}) error { return e.encodeInt(value.(int)) },
-			reflect.Int8:    func(e *Encoder, value interface{}) error { return e.encodeInt8(value.(int8)) },
-			reflect.Int16:   func(e *Encoder, value interface{}) error { return e.encodeInt16(value.(int16)) },
-			reflect.Int32:   func(e *Encoder, value interface{}) error { return e.encodeInt32(value.(int32)) },
-			reflect.Int64:   func(e *Encoder, value interface{}) error { return e.encodeInt64(value.(int64)) },
-			reflect.Float32: func(e *Encoder, value interface{}) error { return e.encodeFloat32(value.(float32)) },
-			reflect.Float64: func(e *Encoder, value interface{}) error { return e.encodeFloat64(value.(float64)) },
-			reflect.Bool:    func(e *Encoder, value interface{}) error { return e.encodeBool(value.(bool)) },
-			reflect.String:  func(e *Encoder, value interface{}) error { return e.encodeString(value.(string)) },
-			reflect.Slice:   func(e *Encoder, value interface{}) error { return e.encodeArrayOrSlice(value) },
-			reflect.Array:   func(e *Encoder, value interface{}) error { return e.encodeArrayOrSlice(value) },
-			reflect.Struct:  func(e *Encoder, value interface{}) error { return e.encodeStruct(value) },
+			reflect.Uint:    func(e *Encoder, value interface{}, b bool) error { return e.encodeUint(value.(uint), b) },
+			reflect.Uint8:   func(e *Encoder, value interface{}, b bool) error { return e.encodeUint8(value.(uint8), b) },
+			reflect.Uint16:  func(e *Encoder, value interface{}, b bool) error { return e.encodeUint16(value.(uint16), b) },
+			reflect.Uint32:  func(e *Encoder, value interface{}, b bool) error { return e.encodeUint32(value.(uint32), b) },
+			reflect.Uint64:  func(e *Encoder, value interface{}, b bool) error { return e.encodeUint64(value.(uint64), b) },
+			reflect.Int:     func(e *Encoder, value interface{}, b bool) error { return e.encodeInt(value.(int), b) },
+			reflect.Int8:    func(e *Encoder, value interface{}, b bool) error { return e.encodeInt8(value.(int8), b) },
+			reflect.Int16:   func(e *Encoder, value interface{}, b bool) error { return e.encodeInt16(value.(int16), b) },
+			reflect.Int32:   func(e *Encoder, value interface{}, b bool) error { return e.encodeInt32(value.(int32), b) },
+			reflect.Int64:   func(e *Encoder, value interface{}, b bool) error { return e.encodeInt64(value.(int64), b) },
+			reflect.Float32: func(e *Encoder, value interface{}, b bool) error { return e.encodeFloat32(value.(float32), b) },
+			reflect.Float64: func(e *Encoder, value interface{}, b bool) error { return e.encodeFloat64(value.(float64), b) },
+			reflect.Bool:    func(e *Encoder, value interface{}, b bool) error { return e.encodeBool(value.(bool), b) },
+			reflect.String:  func(e *Encoder, value interface{}, b bool) error { return e.encodeString(value.(string), b) },
+			reflect.Slice:   func(e *Encoder, value interface{}, b bool) error { return e.encodeArrayOrSlice(value, b) },
+			reflect.Array:   func(e *Encoder, value interface{}, b bool) error { return e.encodeArrayOrSlice(value, b) },
+			reflect.Struct:  func(e *Encoder, value interface{}, b bool) error { return e.encodeStruct(value, b) },
+			reflect.Map:     func(e *Encoder, value interface{}, b bool) error { return e.encodeMap(value, b) },
 		},
 		writer: w,
 	}
@@ -51,13 +52,13 @@ func (e *Encoder) Encode(m *Message) error {
 		msgBytes   []byte
 		bodyLength int
 	)
-	bodyLength, bodyBuf, err = e.EncodeBody(m.Body)
+	bodyLength, bodyBuf, err = e.EncodeBody(m.Body, m.Header.HasFlag(FBigLengths))
 	if err != nil {
 		return err
 	}
 	e.buf.Reset()
-	if bodyLength > MaxMessageBodySize {
-		return errors.New(fmt.Sprintf("message body too large. length: %d max: %d", bodyLength, MaxMessageBodySize))
+	if bodyLength > MaxTcpMessageBodySize {
+		return errors.New(fmt.Sprintf("message body too large. length: %d max: %d", bodyLength, MaxTcpMessageBodySize))
 	}
 	typeID, err = GetIDFromType(m.Body)
 	if err != nil {
@@ -95,9 +96,9 @@ func (e *Encoder) EncodeHeader(h *Header) ([]byte, error) {
 		}
 	}
 	if hasTransactionID {
-		h.Flags |= FTransactionID
+		h.SetFlag(FTransactionID)
 	}
-	if (h.Flags & FTransactionID) != 0 {
+	if h.HasFlag(FTransactionID) {
 		if err = binary.Write(buf, binary.BigEndian, h.TransactionID); err != nil {
 			return nil, err
 		}
@@ -108,10 +109,10 @@ func (e *Encoder) EncodeHeader(h *Header) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (e *Encoder) EncodeBody(v interface{}) (int, []byte, error) {
+func (e *Encoder) EncodeBody(v interface{}, bigLengths bool) (int, []byte, error) {
 	val := reflect.ValueOf(v)
 	res := new(bytes.Buffer)
-	err := e.encodeValue(val)
+	err := e.encodeValue(val, bigLengths)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -120,14 +121,14 @@ func (e *Encoder) EncodeBody(v interface{}) (int, []byte, error) {
 	return int(n), res.Bytes(), err
 }
 
-func (e *Encoder) encodeValue(value reflect.Value) error {
+func (e *Encoder) encodeValue(value reflect.Value, bigLengths bool) error {
 	kind := value.Kind()
 	if kind == reflect.Invalid {
 		return nil
 	}
 	value = castValueToUnderlying(value)
 	if encoder, ok := e.primitiveEncoders[kind]; ok {
-		return encoder(e, value.Interface())
+		return encoder(e, value.Interface(), bigLengths)
 	}
 	return errors.New("unsupported type")
 }
@@ -175,55 +176,68 @@ func getUnderlyingType(t reflect.Type) reflect.Type {
 	}
 }
 
-func (e *Encoder) encodeUint(value uint) error {
+func (e *Encoder) encodeLength(value int, bigLengths bool) error {
+	if bigLengths && value > 1<<32 {
+		return fmt.Errorf("length %d is too large, max: %d", value, 1<<32)
+	}
+	if bigLengths && value > 1<<16 {
+		return fmt.Errorf("length %d is too large, max: %d. consider setting the FBigLengths flag", value, 1<<16)
+	}
+	if bigLengths {
+		return binary.Write(e.buf, binary.BigEndian, uint32(value))
+	}
+	return binary.Write(e.buf, binary.BigEndian, uint16(value))
+}
+
+func (e *Encoder) encodeUint(value uint, _ bool) error {
 	return binary.Write(e.buf, binary.BigEndian, uint64(value))
 }
 
-func (e *Encoder) encodeUint8(value uint8) error {
+func (e *Encoder) encodeUint8(value uint8, _ bool) error {
 	return binary.Write(e.buf, binary.BigEndian, value)
 }
 
-func (e *Encoder) encodeUint16(value uint16) error {
+func (e *Encoder) encodeUint16(value uint16, _ bool) error {
 	return binary.Write(e.buf, binary.BigEndian, value)
 }
 
-func (e *Encoder) encodeUint32(value uint32) error {
+func (e *Encoder) encodeUint32(value uint32, _ bool) error {
 	return binary.Write(e.buf, binary.BigEndian, value)
 }
 
-func (e *Encoder) encodeUint64(value uint64) error {
+func (e *Encoder) encodeUint64(value uint64, _ bool) error {
 	return binary.Write(e.buf, binary.BigEndian, value)
 }
 
-func (e *Encoder) encodeInt(value int) error {
+func (e *Encoder) encodeInt(value int, _ bool) error {
 	return binary.Write(e.buf, binary.BigEndian, int64(value))
 }
 
-func (e *Encoder) encodeInt8(value int8) error {
+func (e *Encoder) encodeInt8(value int8, _ bool) error {
 	return binary.Write(e.buf, binary.BigEndian, value)
 }
 
-func (e *Encoder) encodeInt16(value int16) error {
+func (e *Encoder) encodeInt16(value int16, _ bool) error {
 	return binary.Write(e.buf, binary.BigEndian, value)
 }
 
-func (e *Encoder) encodeInt32(value int32) error {
+func (e *Encoder) encodeInt32(value int32, _ bool) error {
 	return binary.Write(e.buf, binary.BigEndian, value)
 }
 
-func (e *Encoder) encodeInt64(value int64) error {
+func (e *Encoder) encodeInt64(value int64, _ bool) error {
 	return binary.Write(e.buf, binary.BigEndian, value)
 }
 
-func (e *Encoder) encodeFloat32(value float32) error {
+func (e *Encoder) encodeFloat32(value float32, _ bool) error {
 	return binary.Write(e.buf, binary.BigEndian, value)
 }
 
-func (e *Encoder) encodeFloat64(value float64) error {
+func (e *Encoder) encodeFloat64(value float64, _ bool) error {
 	return binary.Write(e.buf, binary.BigEndian, value)
 }
 
-func (e *Encoder) encodeBool(value bool) error {
+func (e *Encoder) encodeBool(value bool, _ bool) error {
 	var v uint8
 	if value {
 		v = 1
@@ -231,16 +245,16 @@ func (e *Encoder) encodeBool(value bool) error {
 	return binary.Write(e.buf, binary.BigEndian, v)
 }
 
-func (e *Encoder) encodeString(value string) error {
-	if err := e.encodeUint16(uint16(len(value))); err != nil {
+func (e *Encoder) encodeString(value string, bigLengths bool) error {
+	if err := e.encodeLength(len(value), bigLengths); err != nil {
 		return err
 	}
 	return binary.Write(e.buf, binary.BigEndian, []byte(value))
 }
 
-func (e *Encoder) encodeArrayOrSlice(value interface{}) error {
+func (e *Encoder) encodeArrayOrSlice(value interface{}, bigLengths bool) error {
 	sliceValue := reflect.ValueOf(value)
-	if err := e.encodeUint32(uint32(sliceValue.Len())); err != nil {
+	if err := e.encodeLength(sliceValue.Len(), bigLengths); err != nil {
 		return err
 	}
 	if sliceValue.Len() == 0 {
@@ -248,22 +262,39 @@ func (e *Encoder) encodeArrayOrSlice(value interface{}) error {
 	}
 	for i := 0; i < sliceValue.Len(); i++ {
 		v := sliceValue.Index(i)
-		if err := e.encodeValue(v); err != nil {
+		if err := e.encodeValue(v, bigLengths); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (e *Encoder) encodeStruct(val interface{}) error {
+func (e *Encoder) encodeStruct(val interface{}, bigLengths bool) error {
 	v := reflect.ValueOf(val)
 	for i := 0; i < v.NumField(); i++ {
 		fieldVal := v.Field(i)
 		fieldType := v.Type().Field(i)
 		if fieldType.IsExported() {
-			if err := e.encodeValue(fieldVal); err != nil {
+			if err := e.encodeValue(fieldVal, bigLengths); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeMap(val interface{}, bigLengths bool) error {
+	v := reflect.ValueOf(val)
+	keys := v.MapKeys()
+	if err := e.encodeLength(len(keys), bigLengths); err != nil {
+		return err
+	}
+	for _, key := range keys {
+		if err := e.encodeValue(key, bigLengths); err != nil {
+			return err
+		}
+		if err := e.encodeValue(v.MapIndex(key), bigLengths); err != nil {
+			return err
 		}
 	}
 	return nil

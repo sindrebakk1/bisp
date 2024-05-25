@@ -358,13 +358,13 @@ func TestEncodeDecodeMessage_Nil(t *testing.T) {
 	}
 	testEncodeDecodeMessages(t, tcs)
 }
+
 func TestEncodeDecodeMessage_Enum(t *testing.T) {
 	type testStructEnum struct {
 		A TestEnum
 		B TestEnum
 		C []TestEnum
 	}
-	bisp.RegisterType(TestEnum(0))
 	bisp.RegisterType(testStructEnum{})
 	tcs := []testCase{
 		{
@@ -388,6 +388,36 @@ func TestEncodeDecodeMessage_Enum(t *testing.T) {
 				},
 			},
 			name: "struct with enums and enum slice",
+		},
+	}
+	testEncodeDecodeMessages(t, tcs)
+}
+
+func TestEncodeDecodeMessage_Map(t *testing.T) {
+	bisp.RegisterType(map[int]string{})
+	bisp.RegisterType(map[TestEnum]string{})
+	bisp.RegisterType(map[string]int{})
+	bisp.RegisterType(map[string]TestEnum{})
+	tcs := []testCase{
+		{
+			value: bisp.Message{
+				Body: map[int]string{1: "a", 2: "b", 3: "c"},
+			}, name: "int > string map",
+		},
+		{
+			value: bisp.Message{
+				Body: map[TestEnum]string{TestEnum1: "a", TestEnum2: "b", TestEnum3: "c"},
+			}, name: "enum > string map",
+		},
+		{
+			value: bisp.Message{
+				Body: map[string]int{"a": 1, "b": 2, "c": 3},
+			}, name: "string > int map",
+		},
+		{
+			value: bisp.Message{
+				Body: map[string]TestEnum{"a": TestEnum1, "b": TestEnum2, "c": TestEnum3},
+			}, name: "string > enum map",
 		},
 	}
 	testEncodeDecodeMessages(t, tcs)
