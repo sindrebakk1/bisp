@@ -130,6 +130,9 @@ func (d *Decoder) DecodeBody(typeID TypeID, length uint16) (interface{}, error) 
 		return nil, nil
 	}
 	val := reflect.New(typ).Elem()
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
 	if err = d.decodeValue(val); err != nil {
 		return nil, err
 	}
@@ -142,7 +145,7 @@ func (d *Decoder) decodeValue(v reflect.Value) error {
 		if err != nil {
 			return err
 		}
-		v.Set(reflect.ValueOf(val))
+		v.Set(reflect.ValueOf(val).Convert(v.Type()))
 		return nil
 	} else {
 		return errors.New("unsupported type")
@@ -150,7 +153,7 @@ func (d *Decoder) decodeValue(v reflect.Value) error {
 }
 
 func (d *Decoder) decodeUint(_ reflect.Value) (uint, error) {
-	var value uint32
+	var value uint64
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return uint(value), err
 }
@@ -180,7 +183,7 @@ func (d *Decoder) decodeUint64(_ reflect.Value) (uint64, error) {
 }
 
 func (d *Decoder) decodeInt(_ reflect.Value) (int, error) {
-	var value int32
+	var value int64
 	err := binary.Read(d.buf, binary.BigEndian, &value)
 	return int(value), err
 }
@@ -259,7 +262,7 @@ func (d *Decoder) decodeArrayOrSlice(v reflect.Value) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		slice = reflect.Append(slice, reflect.ValueOf(val))
+		slice = reflect.Append(slice, reflect.ValueOf(val).Convert(elType))
 	}
 	return slice.Interface(), nil
 }
@@ -281,7 +284,7 @@ func (d *Decoder) decodeStruct(v reflect.Value) (interface{}, error) {
 			return nil, err
 		}
 		if field.IsValid() && field.CanSet() {
-			field.Set(reflect.ValueOf(newFieldValue))
+			field.Set(reflect.ValueOf(newFieldValue).Convert(field.Type()))
 		}
 	}
 

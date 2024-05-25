@@ -35,8 +35,8 @@ func NewEncoder(w io.Writer) *Encoder {
 			reflect.Float64: func(e *Encoder, value interface{}) error { return e.encodeFloat64(value.(float64)) },
 			reflect.Bool:    func(e *Encoder, value interface{}) error { return e.encodeBool(value.(bool)) },
 			reflect.String:  func(e *Encoder, value interface{}) error { return e.encodeString(value.(string)) },
-			reflect.Slice:   func(e *Encoder, value interface{}) error { return e.encodeArrayOrSlice(value.(interface{})) },
-			reflect.Array:   func(e *Encoder, value interface{}) error { return e.encodeArrayOrSlice(value.(interface{})) },
+			reflect.Slice:   func(e *Encoder, value interface{}) error { return e.encodeArrayOrSlice(value) },
+			reflect.Array:   func(e *Encoder, value interface{}) error { return e.encodeArrayOrSlice(value) },
 			reflect.Struct:  func(e *Encoder, value interface{}) error { return e.encodeStruct(value) },
 		},
 		writer: w,
@@ -125,14 +125,58 @@ func (e *Encoder) encodeValue(value reflect.Value) error {
 	if kind == reflect.Invalid {
 		return nil
 	}
+	value = castValueToUnderlying(value)
 	if encoder, ok := e.primitiveEncoders[kind]; ok {
 		return encoder(e, value.Interface())
 	}
 	return errors.New("unsupported type")
 }
 
+func castValueToUnderlying(v reflect.Value) reflect.Value {
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	underlyingType := getUnderlyingType(v.Type())
+	return v.Convert(underlyingType)
+}
+
+func getUnderlyingType(t reflect.Type) reflect.Type {
+	switch t.Kind() {
+	case reflect.Uint:
+		return reflect.TypeOf(uint(0))
+	case reflect.Uint8:
+		return reflect.TypeOf(uint8(0))
+	case reflect.Uint16:
+		return reflect.TypeOf(uint16(0))
+	case reflect.Uint32:
+		return reflect.TypeOf(uint32(0))
+	case reflect.Uint64:
+		return reflect.TypeOf(uint64(0))
+	case reflect.Int:
+		return reflect.TypeOf(int(0))
+	case reflect.Int8:
+		return reflect.TypeOf(int8(0))
+	case reflect.Int16:
+		return reflect.TypeOf(int16(0))
+	case reflect.Int32:
+		return reflect.TypeOf(int32(0))
+	case reflect.Int64:
+		return reflect.TypeOf(int64(0))
+	case reflect.Float32:
+		return reflect.TypeOf(float32(0))
+	case reflect.Float64:
+		return reflect.TypeOf(float64(0))
+	case reflect.Bool:
+		return reflect.TypeOf(bool(false))
+	case reflect.String:
+		return reflect.TypeOf("")
+	default:
+		return t
+	}
+}
+
 func (e *Encoder) encodeUint(value uint) error {
-	return binary.Write(e.buf, binary.BigEndian, uint32(value))
+	return binary.Write(e.buf, binary.BigEndian, uint64(value))
 }
 
 func (e *Encoder) encodeUint8(value uint8) error {
@@ -152,7 +196,7 @@ func (e *Encoder) encodeUint64(value uint64) error {
 }
 
 func (e *Encoder) encodeInt(value int) error {
-	return binary.Write(e.buf, binary.BigEndian, int32(value))
+	return binary.Write(e.buf, binary.BigEndian, int64(value))
 }
 
 func (e *Encoder) encodeInt8(value int8) error {
@@ -195,13 +239,7 @@ func (e *Encoder) encodeString(value string) error {
 }
 
 func (e *Encoder) encodeArrayOrSlice(value interface{}) error {
-	sliceType := reflect.TypeOf(value)
 	sliceValue := reflect.ValueOf(value)
-	elementType := sliceType.Elem()
-	encoder, ok := e.primitiveEncoders[elementType.Kind()]
-	if !ok {
-		return errors.New("unsupported type")
-	}
 	if err := e.encodeUint32(uint32(sliceValue.Len())); err != nil {
 		return err
 	}
@@ -209,8 +247,8 @@ func (e *Encoder) encodeArrayOrSlice(value interface{}) error {
 		return nil
 	}
 	for i := 0; i < sliceValue.Len(); i++ {
-		v := sliceValue.Index(i).Interface()
-		if err := encoder(e, v); err != nil {
+		v := sliceValue.Index(i)
+		if err := e.encodeValue(v); err != nil {
 			return err
 		}
 	}

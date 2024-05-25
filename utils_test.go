@@ -13,6 +13,18 @@ type testCase struct {
 	expected any
 }
 
+type TestEnum uint8
+
+const (
+	TestEnum1 TestEnum = iota
+	TestEnum2
+	TestEnum3
+)
+
+func (t TestEnum) String() string {
+	return [...]string{"TestEnum1", "TestEnum2", "TestEnum3"}[t]
+}
+
 func encodeTestHeader(header *bisp.Header) []byte {
 	headerBytes := make([]byte, bisp.HeaderSizeWithTransactionID)
 	headerBytes[0] = byte(header.Version)
@@ -30,12 +42,12 @@ func encodeTestValue(testValue any) ([]byte, error) {
 	t := reflect.TypeOf(testValue)
 	switch t.Kind() {
 	case reflect.Int:
-		if err := binary.Write(buf, binary.BigEndian, int32(testValue.(int))); err != nil {
+		if err := binary.Write(buf, binary.BigEndian, int64(testValue.(int))); err != nil {
 			return nil, err
 		}
 		break
 	case reflect.Uint:
-		if err := binary.Write(buf, binary.BigEndian, uint32(testValue.(uint))); err != nil {
+		if err := binary.Write(buf, binary.BigEndian, uint64(testValue.(uint))); err != nil {
 			return nil, err
 		}
 		break

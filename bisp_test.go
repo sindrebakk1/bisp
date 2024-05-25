@@ -358,6 +358,40 @@ func TestEncodeDecodeMessage_Nil(t *testing.T) {
 	}
 	testEncodeDecodeMessages(t, tcs)
 }
+func TestEncodeDecodeMessage_Enum(t *testing.T) {
+	type testStructEnum struct {
+		A TestEnum
+		B TestEnum
+		C []TestEnum
+	}
+	bisp.RegisterType(TestEnum(0))
+	bisp.RegisterType(testStructEnum{})
+	tcs := []testCase{
+		{
+			value: bisp.Message{
+				Body: TestEnum1,
+			},
+			name: "enum body",
+		},
+		{
+			value: bisp.Message{
+				Body: []TestEnum{TestEnum1, TestEnum2, TestEnum3},
+			},
+			name: "enum slice",
+		},
+		{
+			value: bisp.Message{
+				Body: testStructEnum{
+					TestEnum1,
+					TestEnum2,
+					make([]TestEnum, 4),
+				},
+			},
+			name: "struct with enums and enum slice",
+		},
+	}
+	testEncodeDecodeMessages(t, tcs)
+}
 
 func testEncodeDecodeMessages(t *testing.T, tcs []testCase) {
 	for _, tc := range tcs {

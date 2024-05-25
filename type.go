@@ -18,9 +18,11 @@ func RegisterType(value interface{}) TypeID {
 		reverseRegistry[nextID] = t
 		nextID++
 	}
-	if t != nil && t.Kind() == reflect.Struct {
+	if t != nil && t.Kind() != reflect.Slice && t.Kind() != reflect.Array {
 		slice := reflect.New(reflect.SliceOf(t)).Elem().Interface()
+		arr := reflect.New(reflect.ArrayOf(1, t)).Elem().Interface()
 		RegisterType(slice)
+		RegisterType(arr)
 	}
 	return typeRegistry[t]
 }
@@ -65,19 +67,4 @@ func init() {
 	RegisterType(float64(0))
 	RegisterType(false)
 	RegisterType("")
-	RegisterType([]byte(nil))
-	RegisterType([]int(nil))
-	RegisterType([]int8(nil))
-	RegisterType([]int16(nil))
-	RegisterType([]int32(nil))
-	RegisterType([]int64(nil))
-	RegisterType([]uint(nil))
-	RegisterType([]uint8(nil))
-	RegisterType([]uint16(nil))
-	RegisterType([]uint32(nil))
-	RegisterType([]uint64(nil))
-	RegisterType([]float32(nil))
-	RegisterType([]float64(nil))
-	RegisterType([]bool(nil))
-	RegisterType([]string(nil))
 }
