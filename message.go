@@ -25,8 +25,8 @@ const (
 	FHuff Flag = 1 << 1
 	// FTransaction Flag is set if the message contains a transaction ID.
 	FTransaction Flag = 1 << 2
-	// F32BitLengths Flag is set to use 32 bit lengths instead of 16 bit for strings, slices and maps.
-	F32BitLengths Flag = 1 << 3
+	// F32b Flag is set to use 32 bit lengths instead of 16 bit for strings, slices and maps.
+	F32b Flag = 1 << 3
 )
 
 const HeaderSize = VersionSize + FlagsSize + TypeIDSize + LengthSize
@@ -37,11 +37,13 @@ const HeaderSizeWithTransactionID = HeaderSize + TransactionIDSize
 // max tcp packet size is 64KB, hence the subtraction of max header size, just to be safe
 const MaxTcpMessageBodySize = 1<<16 - HeaderSizeWithTransactionID
 
+const Max32bMessageBodySize = 1<<32 - HeaderSizeWithTransactionID - LengthSize
+
 type TypeID uint16
 
 type TransactionID [TransactionIDSize]byte
 
-type Length uint16
+type Length uint32
 
 type Header struct {
 	Version       Version

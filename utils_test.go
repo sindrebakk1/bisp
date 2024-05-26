@@ -25,18 +25,21 @@ func (t TestEnum) String() string {
 	return [...]string{"TestEnum1", "TestEnum2", "TestEnum3"}[t]
 }
 
-func encodeTestHeader(header *bisp.Header) []byte {
-	headerBytes := make([]byte, bisp.HeaderSizeWithTransactionID)
-	headerBytes[0] = byte(header.Version)
-	headerBytes[bisp.VersionSize] = byte(header.Flags)
-	binary.BigEndian.PutUint16(headerBytes[bisp.VersionSize+bisp.FlagsSize:], uint16(header.Type))
-	copy(headerBytes[bisp.VersionSize+bisp.FlagsSize+bisp.TypeIDSize:], header.TransactionID[:])
-	binary.BigEndian.PutUint16(headerBytes[bisp.VersionSize+bisp.FlagsSize+bisp.TypeIDSize+bisp.TransactionIDSize:], uint16(header.Length))
-
-	return headerBytes
+func encodeTestHeader(header *bisp.Header, l32 bool) []byte {
+	buf := new(bytes.Buffer)
+	buf.WriteByte(byte(header.Version))
+	buf.WriteByte(byte(header.Flags))
+	_ = binary.Write(buf, binary.BigEndian, header.Type)
+	_ = binary.Write(buf, binary.BigEndian, header.TransactionID)
+	if l32 {
+		_ = binary.Write(buf, binary.BigEndian, uint32(header.Length))
+		return buf.Bytes()
+	}
+	_ = binary.Write(buf, binary.BigEndian, uint16(header.Length))
+	return buf.Bytes()
 }
 
-func encodeTestValue(testValue any, bigLengths bool) ([]byte, error) {
+func encodeTestValue(testValue any, l32 bool) ([]byte, error) {
 	buf := new(bytes.Buffer)
 
 	t := reflect.TypeOf(testValue)
@@ -52,7 +55,7 @@ func encodeTestValue(testValue any, bigLengths bool) ([]byte, error) {
 		}
 		break
 	case reflect.String:
-		if err := encodeLength(buf, len(testValue.(string)), bigLengths); err != nil {
+		if err := encodeLength(buf, len(testValue.(string)), l32); err != nil {
 			return nil, err
 		}
 		if err := binary.Write(buf, binary.BigEndian, []byte(testValue.(string))); err != nil {
@@ -61,12 +64,12 @@ func encodeTestValue(testValue any, bigLengths bool) ([]byte, error) {
 		break
 	case reflect.Slice:
 		slice := reflect.ValueOf(testValue)
-		if err := encodeLength(buf, slice.Len(), bigLengths); err != nil {
+		if err := encodeLength(buf, slice.Len(), l32); err != nil {
 			return nil, err
 		}
 		for i := 0; i < slice.Len(); i++ {
 			v := slice.Index(i).Interface()
-			encodedBytes, err := encodeTestValue(v, bigLengths)
+			encodedBytes, err := encodeTestValue(v, l32)
 			if err != nil {
 				return nil, err
 			}
@@ -79,7 +82,7 @@ func encodeTestValue(testValue any, bigLengths bool) ([]byte, error) {
 		arr := reflect.ValueOf(testValue)
 		for i := 0; i < arr.Len(); i++ {
 			v := arr.Index(i).Interface()
-			encodedBytes, err := encodeTestValue(v, bigLengths)
+			encodedBytes, err := encodeTestValue(v, l32)
 			if err != nil {
 				return nil, err
 			}
@@ -95,7 +98,7 @@ func encodeTestValue(testValue any, bigLengths bool) ([]byte, error) {
 			var err error
 			var encodedBytes []byte
 			if fieldType.IsExported() {
-				encodedBytes, err = encodeTestValue(fieldVal.Interface(), bigLengths)
+				encodedBytes, err = encodeTestValue(fieldVal.Interface(), l32)
 				if err != nil {
 					return nil, err
 				}
@@ -106,18 +109,18 @@ func encodeTestValue(testValue any, bigLengths bool) ([]byte, error) {
 		}
 	case reflect.Map:
 		m := reflect.ValueOf(testValue)
-		if err := encodeLength(buf, m.Len(), bigLengths); err != nil {
+		if err := encodeLength(buf, m.Len(), l32); err != nil {
 			return nil, err
 		}
 		for _, key := range m.MapKeys() {
-			keyBytes, err := encodeTestValue(key.Interface(), bigLengths)
+			keyBytes, err := encodeTestValue(key.Interface(), l32)
 			if err != nil {
 				return nil, err
 			}
 			if _, err = buf.Write(keyBytes); err != nil {
 				return nil, err
 			}
-			valBytes, err := encodeTestValue(m.MapIndex(key).Interface(), bigLengths)
+			valBytes, err := encodeTestValue(m.MapIndex(key).Interface(), l32)
 			if err != nil {
 				return nil, err
 			}
@@ -135,8 +138,8 @@ func encodeTestValue(testValue any, bigLengths bool) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func encodeLength(buf *bytes.Buffer, length int, bigLengths bool) error {
-	if bigLengths {
+func encodeLength(buf *bytes.Buffer, length int, l32 bool) error {
+	if l32 {
 		if err := binary.Write(buf, binary.BigEndian, uint32(length)); err != nil {
 			return err
 		}

@@ -489,6 +489,25 @@ func TestEncodeDecodeMessage_Map(t *testing.T) {
 	testEncodeDecodeMessages(t, tcs)
 }
 
+func TestEncodeDecodeMessage_BigLengths(t *testing.T) {
+	var body string
+	l := (1 << 16 * 2) - 4
+	for i := 0; i < l; i++ {
+		body += "a"
+	}
+	tcs := []testCase{
+		{
+			value: bisp.Message{
+				Header: bisp.Header{
+					Flags: bisp.F32b,
+				},
+				Body: body,
+			}, name: "32 bit lengths",
+		},
+	}
+	testEncodeDecodeMessages(t, tcs)
+}
+
 func testEncodeDecodeMessages(t *testing.T, tcs []testCase) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {

@@ -29,7 +29,7 @@ func TestEncodeHeader(t *testing.T) {
 	bytes, err := encoder.EncodeHeader(&header)
 	assert.NoError(t, err)
 
-	expected := encodeTestHeader(&header)
+	expected := encodeTestHeader(&header, false)
 	assert.Equal(t, expected, bytes)
 	server.Close()
 }
@@ -198,9 +198,46 @@ func TestEncodeMessage_String(t *testing.T) {
 	bytes := make([]byte, 29)
 	_, err := client.Read(bytes)
 	assert.NoError(t, err)
-	expected := encodeTestHeader(&message.Header)
+	expected := encodeTestHeader(&message.Header, false)
 	var b []byte
 	b, err = encodeTestValue("Hello", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected = append(expected, b...)
+	assert.Equal(t, expected, bytes)
+}
+
+func TestEncodeMessage_BigLengths(t *testing.T) {
+	client, server := net.Pipe()
+	var body string
+	l := (1 << 16 * 2) - 4
+	for i := 0; i < l; i++ {
+		body += "a"
+	}
+	typeID, err := bisp.GetIDFromType(body)
+	assert.NoError(t, err)
+	msg := bisp.Message{
+		Header: bisp.Header{
+			Version: bisp.V1,
+			Flags:   bisp.F32b | bisp.FTransaction,
+			Type:    typeID,
+			Length:  bisp.Length(len(body) + 4),
+		},
+		Body: body,
+	}
+	go func() {
+		encoder := bisp.NewEncoder(server)
+		err := encoder.Encode(&msg)
+		assert.NoError(t, err)
+		server.Close()
+	}()
+	expected := encodeTestHeader(&msg.Header, true)
+	bytes := make([]byte, len(body)+4+len(expected))
+	_, err = client.Read(bytes)
+	assert.NoError(t, err)
+	var b []byte
+	b, err = encodeTestValue(body, true)
 	if err != nil {
 		t.Fatal(err)
 	}

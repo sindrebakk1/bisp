@@ -26,7 +26,7 @@ func TestDecodeHeader(t *testing.T) {
 	}
 
 	go func() {
-		encodedHeader := encodeTestHeader(header)
+		encodedHeader := encodeTestHeader(header, false)
 		_, err := server.Write(encodedHeader)
 		assert.Nil(t, err)
 		server.Close()
@@ -201,7 +201,7 @@ func TestDecodeMessage_String(t *testing.T) {
 	assert.Nil(t, err)
 	testMsg.Header.Type = typeID
 	testMsg.Header.Length = bisp.Length(len(bodyBytes))
-	headerBytes := encodeTestHeader(&testMsg.Header)
+	headerBytes := encodeTestHeader(&testMsg.Header, false)
 	msgBytes := append(headerBytes, bodyBytes...)
 
 	client, server := net.Pipe()
@@ -240,7 +240,7 @@ func testDecodeBody(t *testing.T, testCases []testCase) {
 			assert.Nil(t, err)
 
 			var res interface{}
-			res, err = decoder.DecodeBody(typeID, uint16(len(encoded)), false)
+			res, err = decoder.DecodeBody(typeID, uint32(len(encoded)), false)
 			assert.Nil(t, err)
 			expected := tc.value
 			if tc.expected != nil {

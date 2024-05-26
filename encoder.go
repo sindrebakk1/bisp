@@ -52,12 +52,15 @@ func (e *Encoder) Encode(m *Message) error {
 		msgBytes   []byte
 		bodyLength int
 	)
-	bodyLength, bodyBuf, err = e.EncodeBody(m.Body, m.Header.HasFlag(F32BitLengths))
+	bodyLength, bodyBuf, err = e.EncodeBody(m.Body, m.Header.HasFlag(F32b))
 	if err != nil {
 		return err
 	}
 	e.buf.Reset()
-	if bodyLength > MaxTcpMessageBodySize {
+	if m.Header.HasFlag(F32b) && bodyLength > Max32bMessageBodySize {
+		return errors.New(fmt.Sprintf("message body too large. length: %d max: %d", bodyLength, Max32bMessageBodySize))
+	}
+	if bodyLength > MaxTcpMessageBodySize && !m.Header.HasFlag(F32b) {
 		return errors.New(fmt.Sprintf("message body too large. length: %d max: %d", bodyLength, MaxTcpMessageBodySize))
 	}
 	typeID, err = GetIDFromType(m.Body)
@@ -103,16 +106,22 @@ func (e *Encoder) EncodeHeader(h *Header) ([]byte, error) {
 			return nil, err
 		}
 	}
-	if err = binary.Write(buf, binary.BigEndian, h.Length); err != nil {
-		return nil, err
+	if h.HasFlag(F32b) {
+		if err = binary.Write(buf, binary.BigEndian, h.Length); err != nil {
+			return nil, err
+		}
+	} else {
+		if err = binary.Write(buf, binary.BigEndian, uint16(h.Length)); err != nil {
+			return nil, err
+		}
 	}
 	return buf.Bytes(), nil
 }
 
-func (e *Encoder) EncodeBody(v interface{}, bigLengths bool) (int, []byte, error) {
+func (e *Encoder) EncodeBody(v interface{}, l32 bool) (int, []byte, error) {
 	val := reflect.ValueOf(v)
 	res := new(bytes.Buffer)
-	err := e.encodeValue(val, bigLengths)
+	err := e.encodeValue(val, l32)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -121,14 +130,14 @@ func (e *Encoder) EncodeBody(v interface{}, bigLengths bool) (int, []byte, error
 	return int(n), res.Bytes(), err
 }
 
-func (e *Encoder) encodeValue(value reflect.Value, bigLengths bool) error {
+func (e *Encoder) encodeValue(value reflect.Value, l32 bool) error {
 	kind := value.Kind()
 	if kind == reflect.Invalid {
 		return nil
 	}
 	value = castValueToUnderlying(value)
 	if encoder, ok := e.primitiveEncoders[kind]; ok {
-		return encoder(e, value.Interface(), bigLengths)
+		return encoder(e, value.Interface(), l32)
 	}
 	return errors.New("unsupported type")
 }
@@ -176,14 +185,14 @@ func getUnderlyingType(t reflect.Type) reflect.Type {
 	}
 }
 
-func (e *Encoder) encodeLength(value int, bigLengths bool) error {
-	if bigLengths && value > 1<<32 {
+func (e *Encoder) encodeLength(value int, l32 bool) error {
+	if l32 && value > 1<<32 {
 		return fmt.Errorf("length %d is too large, max: %d", value, 1<<32)
 	}
-	if bigLengths && value > 1<<16 {
-		return fmt.Errorf("length %d is too large, max: %d. consider setting the F32BitLengths flag", value, 1<<16)
+	if !l32 && value > 1<<16 {
+		return fmt.Errorf("length %d is too large, max: %d. consider setting the F32b flag", value, 1<<16)
 	}
-	if bigLengths {
+	if l32 {
 		return binary.Write(e.buf, binary.BigEndian, uint32(value))
 	}
 	return binary.Write(e.buf, binary.BigEndian, uint16(value))
@@ -245,16 +254,16 @@ func (e *Encoder) encodeBool(value bool, _ bool) error {
 	return binary.Write(e.buf, binary.BigEndian, v)
 }
 
-func (e *Encoder) encodeString(value string, bigLengths bool) error {
-	if err := e.encodeLength(len(value), bigLengths); err != nil {
+func (e *Encoder) encodeString(value string, l32 bool) error {
+	if err := e.encodeLength(len(value), l32); err != nil {
 		return err
 	}
 	return binary.Write(e.buf, binary.BigEndian, []byte(value))
 }
 
-func (e *Encoder) encodeSlice(value interface{}, bigLengths bool) error {
+func (e *Encoder) encodeSlice(value interface{}, l32 bool) error {
 	sliceValue := reflect.ValueOf(value)
-	if err := e.encodeLength(sliceValue.Len(), bigLengths); err != nil {
+	if err := e.encodeLength(sliceValue.Len(), l32); err != nil {
 		return err
 	}
 	if sliceValue.Len() == 0 {
@@ -262,31 +271,31 @@ func (e *Encoder) encodeSlice(value interface{}, bigLengths bool) error {
 	}
 	for i := 0; i < sliceValue.Len(); i++ {
 		v := sliceValue.Index(i)
-		if err := e.encodeValue(v, bigLengths); err != nil {
+		if err := e.encodeValue(v, l32); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (e *Encoder) encodeArray(value interface{}, bigLengths bool) error {
+func (e *Encoder) encodeArray(value interface{}, l32 bool) error {
 	arr := reflect.ValueOf(value)
 	for i := 0; i < arr.Len(); i++ {
 		v := arr.Index(i)
-		if err := e.encodeValue(v, bigLengths); err != nil {
+		if err := e.encodeValue(v, l32); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (e *Encoder) encodeStruct(val interface{}, bigLengths bool) error {
+func (e *Encoder) encodeStruct(val interface{}, l32 bool) error {
 	v := reflect.ValueOf(val)
 	for i := 0; i < v.NumField(); i++ {
 		fieldVal := v.Field(i)
 		fieldType := v.Type().Field(i)
 		if fieldType.IsExported() {
-			if err := e.encodeValue(fieldVal, bigLengths); err != nil {
+			if err := e.encodeValue(fieldVal, l32); err != nil {
 				return err
 			}
 		}
@@ -294,17 +303,17 @@ func (e *Encoder) encodeStruct(val interface{}, bigLengths bool) error {
 	return nil
 }
 
-func (e *Encoder) encodeMap(val interface{}, bigLengths bool) error {
+func (e *Encoder) encodeMap(val interface{}, l32 bool) error {
 	v := reflect.ValueOf(val)
 	keys := v.MapKeys()
-	if err := e.encodeLength(len(keys), bigLengths); err != nil {
+	if err := e.encodeLength(len(keys), l32); err != nil {
 		return err
 	}
 	for _, key := range keys {
-		if err := e.encodeValue(key, bigLengths); err != nil {
+		if err := e.encodeValue(key, l32); err != nil {
 			return err
 		}
-		if err := e.encodeValue(v.MapIndex(key), bigLengths); err != nil {
+		if err := e.encodeValue(v.MapIndex(key), l32); err != nil {
 			return err
 		}
 	}
