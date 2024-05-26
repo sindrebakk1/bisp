@@ -21,12 +21,12 @@ type Flag uint8
 const (
 	// FError Flag is set if the message contains an error.
 	FError Flag = 1 << iota
-	// FHuff Flag is set if the message body is compressed using huffman encoding.
-	FHuff Flag = 1 << 1
 	// FTransaction Flag is set if the message contains a transaction ID.
-	FTransaction Flag = 1 << 2
-	// F32b Flag is set to use 32 bit lengths instead of 16 bit for strings, slices and maps.
-	F32b Flag = 1 << 3
+	FTransaction Flag = 1 << 1
+	// F32b Flag is set to use 32 bit lengths instead of 16 bit
+	F32b Flag = 1 << 2
+	// FHuff Flag is set if the message body is compressed using huffman encoding.
+	FHuff Flag = 1 << 3
 )
 
 const HeaderSize = VersionSize + FlagsSize + TypeIDSize + LengthSize
