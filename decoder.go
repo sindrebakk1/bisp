@@ -34,8 +34,8 @@ func NewDecoder(r io.Reader) *Decoder {
 			reflect.Float64: func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeFloat64(v, b) },
 			reflect.Bool:    func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeBool(v, b) },
 			reflect.String:  func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeString(v, b) },
-			reflect.Slice:   func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeArrayOrSlice(v, b) },
-			reflect.Array:   func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeArrayOrSlice(v, b) },
+			reflect.Slice:   func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeSlice(v, b) },
+			reflect.Array:   func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeArray(v, b) },
 			reflect.Struct:  func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeStruct(v, b) },
 			reflect.Map:     func(d *Decoder, v reflect.Value, b bool) (interface{}, error) { return d.decodeMap(v, b) },
 		},
@@ -251,7 +251,7 @@ func (d *Decoder) decodeString(v reflect.Value, bigLengths bool) (string, error)
 	return string(buf), err
 }
 
-func (d *Decoder) decodeArrayOrSlice(v reflect.Value, bigLengths bool) (interface{}, error) {
+func (d *Decoder) decodeSlice(v reflect.Value, bigLengths bool) (interface{}, error) {
 	t := v.Type()
 	elType := t.Elem()
 	length, err := d.decodeLength(v, bigLengths)
@@ -275,6 +275,27 @@ func (d *Decoder) decodeArrayOrSlice(v reflect.Value, bigLengths bool) (interfac
 		slice = reflect.Append(slice, reflect.ValueOf(val).Convert(elType))
 	}
 	return slice.Interface(), nil
+}
+
+func (d *Decoder) decodeArray(v reflect.Value, bigLengths bool) (interface{}, error) {
+	t := v.Type()
+	elType := t.Elem()
+	array := reflect.New(reflect.ArrayOf(t.Len(), elType)).Elem()
+	if t.Len() == 0 {
+		return array.Interface(), nil
+	}
+	decoder, ok := d.primitiveDecoders[elType.Kind()]
+	if !ok {
+		return nil, errors.New("unsupported type")
+	}
+	for i := 0; i < t.Len(); i++ {
+		val, err := decoder(d, reflect.New(elType).Elem(), bigLengths)
+		if err != nil {
+			return nil, err
+		}
+		array.Index(i).Set(reflect.ValueOf(val).Convert(elType))
+	}
+	return array.Interface(), nil
 }
 
 func (d *Decoder) decodeStruct(v reflect.Value, bigLengths bool) (interface{}, error) {

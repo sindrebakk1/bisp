@@ -96,6 +96,31 @@ func TestDecodeBody_Slice(t *testing.T) {
 	testDecodeBody(t, testCases)
 }
 
+func TestDecodeBody_Array(t *testing.T) {
+	type testStruct struct {
+		A int
+		B string
+		C bool
+	}
+	bisp.RegisterType([3]int{})
+	bisp.RegisterType([3]uint{})
+	bisp.RegisterType([3]float32{})
+	bisp.RegisterType([3]float64{})
+	bisp.RegisterType([3]string{})
+	bisp.RegisterType([3]bool{})
+	bisp.RegisterType([3]testStruct{})
+	testCases := []testCase{
+		{value: [3]int{1, 2, 3}, name: "int array"},
+		{value: [3]uint{4, 5, 6}, name: "uint array"},
+		{value: [3]float32{1.1, 2.2, 3.3}, name: "float32 array"},
+		{value: [3]float64{4.4, 5.5, 6.6}, name: "float64 array"},
+		{value: [3]string{"a", "b", "c"}, name: "string array"},
+		{value: [3]bool{true, false, true}, name: "bool array"},
+		{value: [3]testStruct{{1, "a", true}, {2, "b", false}, {3, "c", true}}, name: "struct array"},
+	}
+	testDecodeBody(t, testCases)
+}
+
 func TestDecodeBody_Struct(t *testing.T) {
 	type testStruct struct {
 		A int

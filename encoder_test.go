@@ -90,6 +90,25 @@ func TestEncodeBody_Slice(t *testing.T) {
 	testEncodeBody(t, testCases)
 }
 
+func TestEncodeBody_Array(t *testing.T) {
+	type testStruct2 struct {
+		A int
+		B string
+		C bool
+	}
+	bisp.RegisterType(testStruct2{})
+	testCases := []testCase{
+		{value: [3]int{1, 2, 3}, name: "int array"},
+		{value: [3]uint{4, 5, 6}, name: "uint array"},
+		{value: [3]float32{1.1, 2.2, 3.3}, name: "float32 array"},
+		{value: [3]float64{4.4, 5.5, 6.6}, name: "float64 array"},
+		{value: [3]string{"a", "b", "c"}, name: "string array"},
+		{value: [3]bool{true, false, true}, name: "bool array"},
+		{value: [3]testStruct2{{1, "a", true}, {2, "b", false}}, name: "struct array"},
+	}
+	testEncodeBody(t, testCases)
+}
+
 func TestEncodeBody_Struct(t *testing.T) {
 	type testStruct2 struct {
 		A int

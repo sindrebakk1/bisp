@@ -193,6 +193,66 @@ func TestEncodeDecodeMessage_Slice(t *testing.T) {
 	testEncodeDecodeMessages(t, tcs)
 }
 
+func TestEncodeDecodeMessage_Array(t *testing.T) {
+	type testStruct3 struct {
+		A int
+		B string
+		C bool
+	}
+	bisp.RegisterType([3]int{})
+	bisp.RegisterType([3]uint{})
+	bisp.RegisterType([3]float32{})
+	bisp.RegisterType([3]float64{})
+	bisp.RegisterType([3]string{})
+	bisp.RegisterType([3]bool{})
+	bisp.RegisterType([3]testStruct3{})
+	tcs := []testCase{
+		{
+			value: bisp.Message{
+				Body: [3]int{1, 2, 3},
+			},
+			name: "int array",
+		},
+		{
+			value: bisp.Message{
+				Body: [3]uint{4, 5, 6},
+			},
+			name: "uint array",
+		},
+		{
+			value: bisp.Message{
+				Body: [3]float32{1.1, 2.2, 3.3},
+			},
+			name: "float32 array",
+		},
+		{
+			value: bisp.Message{
+				Body: [3]float64{4.4, 5.5, 6.6},
+			},
+			name: "float64 array",
+		},
+		{
+			value: bisp.Message{
+				Body: [3]string{"a", "b", "c"},
+			},
+			name: "string array",
+		},
+		{
+			value: bisp.Message{
+				Body: [3]bool{true, false, true},
+			},
+			name: "bool array",
+		},
+		{
+			value: bisp.Message{
+				Body: [3]testStruct3{{1, "a", true}, {2, "B", false}, {3, "B", true}},
+			},
+			name: "struct array",
+		},
+	}
+	testEncodeDecodeMessages(t, tcs)
+}
+
 func TestEncodeDecodeMessage_Struct(t *testing.T) {
 	type testStruct3 struct {
 		A int
@@ -398,6 +458,7 @@ func TestEncodeDecodeMessage_Map(t *testing.T) {
 	bisp.RegisterType(map[TestEnum]string{})
 	bisp.RegisterType(map[string]int{})
 	bisp.RegisterType(map[string]TestEnum{})
+	bisp.RegisterType(map[string][]int{})
 	tcs := []testCase{
 		{
 			value: bisp.Message{
@@ -418,6 +479,11 @@ func TestEncodeDecodeMessage_Map(t *testing.T) {
 			value: bisp.Message{
 				Body: map[string]TestEnum{"a": TestEnum1, "b": TestEnum2, "c": TestEnum3},
 			}, name: "string > enum map",
+		},
+		{
+			value: bisp.Message{
+				Body: map[string][]int{"a": {1, 2, 3}, "b": {4, 5, 6}, "c": {7, 8, 9}},
+			}, name: "string > int slice map",
 		},
 	}
 	testEncodeDecodeMessages(t, tcs)

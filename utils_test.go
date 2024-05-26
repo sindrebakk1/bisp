@@ -75,6 +75,18 @@ func encodeTestValue(testValue any, bigLengths bool) ([]byte, error) {
 			}
 		}
 		break
+	case reflect.Array:
+		arr := reflect.ValueOf(testValue)
+		for i := 0; i < arr.Len(); i++ {
+			v := arr.Index(i).Interface()
+			encodedBytes, err := encodeTestValue(v, bigLengths)
+			if err != nil {
+				return nil, err
+			}
+			if _, err = buf.Write(encodedBytes); err != nil {
+				return nil, err
+			}
+		}
 	case reflect.Struct:
 		v := reflect.ValueOf(testValue)
 		for i := 0; i < v.NumField(); i++ {

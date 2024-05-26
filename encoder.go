@@ -35,8 +35,8 @@ func NewEncoder(w io.Writer) *Encoder {
 			reflect.Float64: func(e *Encoder, value interface{}, b bool) error { return e.encodeFloat64(value.(float64), b) },
 			reflect.Bool:    func(e *Encoder, value interface{}, b bool) error { return e.encodeBool(value.(bool), b) },
 			reflect.String:  func(e *Encoder, value interface{}, b bool) error { return e.encodeString(value.(string), b) },
-			reflect.Slice:   func(e *Encoder, value interface{}, b bool) error { return e.encodeArrayOrSlice(value, b) },
-			reflect.Array:   func(e *Encoder, value interface{}, b bool) error { return e.encodeArrayOrSlice(value, b) },
+			reflect.Slice:   func(e *Encoder, value interface{}, b bool) error { return e.encodeSlice(value, b) },
+			reflect.Array:   func(e *Encoder, value interface{}, b bool) error { return e.encodeArray(value, b) },
 			reflect.Struct:  func(e *Encoder, value interface{}, b bool) error { return e.encodeStruct(value, b) },
 			reflect.Map:     func(e *Encoder, value interface{}, b bool) error { return e.encodeMap(value, b) },
 		},
@@ -252,7 +252,7 @@ func (e *Encoder) encodeString(value string, bigLengths bool) error {
 	return binary.Write(e.buf, binary.BigEndian, []byte(value))
 }
 
-func (e *Encoder) encodeArrayOrSlice(value interface{}, bigLengths bool) error {
+func (e *Encoder) encodeSlice(value interface{}, bigLengths bool) error {
 	sliceValue := reflect.ValueOf(value)
 	if err := e.encodeLength(sliceValue.Len(), bigLengths); err != nil {
 		return err
@@ -262,6 +262,17 @@ func (e *Encoder) encodeArrayOrSlice(value interface{}, bigLengths bool) error {
 	}
 	for i := 0; i < sliceValue.Len(); i++ {
 		v := sliceValue.Index(i)
+		if err := e.encodeValue(v, bigLengths); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) encodeArray(value interface{}, bigLengths bool) error {
+	arr := reflect.ValueOf(value)
+	for i := 0; i < arr.Len(); i++ {
+		v := arr.Index(i)
 		if err := e.encodeValue(v, bigLengths); err != nil {
 			return err
 		}

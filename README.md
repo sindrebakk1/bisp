@@ -96,7 +96,8 @@ TODO
 - [ ] Implement huffman encoding and decoding
 - [ ] Implement a way to encrypt the payload?
 - [ ] Tests:
-  - [ ] Arrays
+  - [x] Arrays
+  - [ ] Error handling
   - [ ] two-dimensional slices and arrays
   - [ ] type aliases
 - [ ] ~~RPC(like) implementation? Actions? Commands? Will require breaking changes to the protocol~~
