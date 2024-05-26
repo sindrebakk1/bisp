@@ -72,13 +72,13 @@ func init() {
 
 ## Protocol
 > ### Header
-> - version: 1 byte
-> - flags: 1 byte
-> - type: 2 bytes
-> - transaction id: 16 bytes (optional, only present if the transaction flag is set)
-> - payload length: 2 bytes
+> - version: 1 byte - the version of the protocol
+> - flags: 1 byte - flags that can be set to enable extra features
+> - type: 2 bytes - the type ID of the payload
+> - transaction ID: 16 bytes - optional, only present if the transaction flag is set
+> - payload length: 2 bytes - the length of the payload
 > ### Payload
-> - payload: variable length
+> - payload: anything that fits in a tcp packet
 
 ## Flags
 > - FError: Error - If this flag is set, the payload is an error message
