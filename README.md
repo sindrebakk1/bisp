@@ -43,16 +43,18 @@ func main() {
 		},
 	}
 
-	client, server := net.Pipe()
-
+	client, server := net.Pipe() 
+	// Send a message
 	go func() {
 		encoder := bisp.NewEncoder(server)
-        err := encoder.Encode(msg)
-        if err != nil {
-            panic(err)
-        }
-    }()
-    decoder := bisp.NewDecoder(client)
+		err := encoder.Encode(msg)
+		if err != nil {
+			panic(err)
+		}
+	}()
+	
+	// Receive a message
+	decoder := bisp.NewDecoder(client)
 	var response bisp.Message
 	err := decoder.Decode(&response)
 	if err != nil {
@@ -96,4 +98,5 @@ TODO
 - [ ] Tests:
   - [ ] Arrays
   - [ ] two-dimensional slices and arrays
+  - [ ] type aliases
 - [ ] ~~RPC(like) implementation? Actions? Commands? Will require breaking changes to the protocol~~
