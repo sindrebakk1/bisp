@@ -12,6 +12,23 @@ var (
 	nextID          TypeID = 0
 )
 
+var (
+	tUint    = reflect.TypeOf(uint(0))
+	tUint8   = reflect.TypeOf(uint8(0))
+	tUint16  = reflect.TypeOf(uint16(0))
+	tUint32  = reflect.TypeOf(uint32(0))
+	tUint64  = reflect.TypeOf(uint64(0))
+	tInt     = reflect.TypeOf(int(0))
+	tInt8    = reflect.TypeOf(int8(0))
+	tInt16   = reflect.TypeOf(int16(0))
+	tInt32   = reflect.TypeOf(int32(0))
+	tInt64   = reflect.TypeOf(int64(0))
+	tFloat32 = reflect.TypeOf(float32(0))
+	tFloat64 = reflect.TypeOf(float64(0))
+	tBool    = reflect.TypeOf(false)
+	tString  = reflect.TypeOf("")
+)
+
 func RegisterType(value interface{}) TypeID {
 	t := reflect.TypeOf(value)
 	if _, ok := typeRegistry[t]; !ok {
@@ -63,6 +80,41 @@ func SyncTypeRegistry(other map[reflect.Type]TypeID) []error {
 
 func GetTypeRegistry() map[reflect.Type]TypeID {
 	return typeRegistry
+}
+
+func getUnderlyingType(v reflect.Value, k reflect.Kind) reflect.Type {
+	switch k {
+	case reflect.Uint:
+		return tUint
+	case reflect.Uint8:
+		return tUint8
+	case reflect.Uint16:
+		return tUint16
+	case reflect.Uint32:
+		return tUint32
+	case reflect.Uint64:
+		return tUint64
+	case reflect.Int:
+		return tInt
+	case reflect.Int8:
+		return tInt8
+	case reflect.Int16:
+		return tInt16
+	case reflect.Int32:
+		return tInt32
+	case reflect.Int64:
+		return tInt64
+	case reflect.Float32:
+		return tFloat32
+	case reflect.Float64:
+		return tFloat64
+	case reflect.Bool:
+		return tBool
+	case reflect.String:
+		return tString
+	default:
+		return v.Type()
+	}
 }
 
 func init() {

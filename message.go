@@ -65,6 +65,21 @@ func (h *Header) SetFlag(f Flag) {
 	h.Flags |= f
 }
 
+func (h *Header) ClearFlag(f Flag) {
+	h.Flags &= ^f
+}
+
+func (h *Header) Len() int {
+	l := HeaderSize
+	if h.HasFlag(FTransaction) {
+		l += TransactionIDSize
+	}
+	if h.HasFlag(F32b) {
+		l += LengthSize
+	}
+	return l
+}
+
 type Message struct {
 	Header Header
 	Body   interface{}

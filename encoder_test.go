@@ -22,11 +22,11 @@ func TestEncodeHeader(t *testing.T) {
 		Flags:         bisp.FError | bisp.FHuff | bisp.FTransaction,
 		Type:          1,
 		TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
-		Length:        5,
+		Length:        0,
 	}
 
 	encoder := bisp.NewEncoder(server)
-	bytes, err := encoder.EncodeHeader(&header)
+	bytes, err := encoder.EncodeHeader(&header, 1, 0)
 	assert.NoError(t, err)
 
 	expected := encodeTestHeader(&header, false)
@@ -182,22 +182,25 @@ func TestEncodeBody_Map(t *testing.T) {
 
 func TestEncodeMessage_String(t *testing.T) {
 	client, server := net.Pipe()
+	body := "Hello"
+	typeID, err := bisp.GetIDFromType(body)
+	assert.NoError(t, err)
 	message := &bisp.Message{
 		Header: bisp.Header{
+			Version:       bisp.V1,
 			Flags:         bisp.FTransaction,
+			Type:          typeID,
 			TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
+			Length:        bisp.Length(2 + len(body)),
 		},
-		Body: "Hello",
+		Body: body,
 	}
 	go func() {
 		encoder := bisp.NewEncoder(server)
-		err := encoder.Encode(message)
+		err = encoder.Encode(message)
 		assert.NoError(t, err)
 		server.Close()
 	}()
-	bytes := make([]byte, 29)
-	_, err := client.Read(bytes)
-	assert.NoError(t, err)
 	expected := encodeTestHeader(&message.Header, false)
 	var b []byte
 	b, err = encodeTestValue("Hello", false)
@@ -205,6 +208,9 @@ func TestEncodeMessage_String(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected = append(expected, b...)
+	bytes := make([]byte, len(expected))
+	_, err = client.Read(bytes)
+	assert.NoError(t, err)
 	assert.Equal(t, expected, bytes)
 }
 
@@ -252,7 +258,7 @@ func testEncodeBody(t *testing.T, testCases []testCase) {
 
 			encoder := bisp.NewEncoder(server)
 
-			_, bytes, err := encoder.EncodeBody(tc.value, false)
+			err := encoder.EncodeBody(tc.value, false)
 			assert.NoError(t, err)
 
 			expected := tc.value
@@ -261,8 +267,11 @@ func testEncodeBody(t *testing.T, testCases []testCase) {
 			}
 			var expectedBytes []byte
 			expectedBytes, err = encodeTestValue(expected, false)
+
+			bytes := encoder.Bytes()
 			assert.Equal(t, expectedBytes, bytes)
 
+			encoder.Reset()
 			server.Close()
 		})
 	}

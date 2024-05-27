@@ -149,7 +149,7 @@ func BenchmarkBigString(b *testing.B) {
 
 func BenchmarkBigSlice(b *testing.B) {
 	sliceSize := bisp.MaxTcpMessageBodySize - 2
-	sliceSize32 := (bisp.Max32bMessageBodySize - 4) / 1024
+	sliceSize32 := bisp.Max32bMessageBodySize / 1024
 	bigSlice := make([]uint8, sliceSize)
 	for i := 0; i < sliceSize; i++ {
 		bigSlice[i] = uint8(i)
