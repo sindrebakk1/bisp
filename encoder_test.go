@@ -208,10 +208,10 @@ func TestEncodeMessage_String(t *testing.T) {
 	assert.Equal(t, expected, bytes)
 }
 
-func TestEncodeMessage_BigLengths(t *testing.T) {
+func TestEncodeMessage_32bLengths(t *testing.T) {
 	client, server := net.Pipe()
 	var body string
-	l := (1 << 16 * 2) - 4
+	l := bisp.MaxTcpMessageBodySize * 2
 	for i := 0; i < l; i++ {
 		body += "a"
 	}
@@ -228,7 +228,7 @@ func TestEncodeMessage_BigLengths(t *testing.T) {
 	}
 	go func() {
 		encoder := bisp.NewEncoder(server)
-		err := encoder.Encode(&msg)
+		err = encoder.Encode(&msg)
 		assert.NoError(t, err)
 		server.Close()
 	}()

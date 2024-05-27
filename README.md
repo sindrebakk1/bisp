@@ -77,8 +77,8 @@ func init() {
 > - version: 1 byte - the version of the protocol
 > - flags: 1 byte - flags that can be set to enable extra features
 > - type: 2 bytes - the type ID of the payload
-> - transaction ID: 16 bytes - optional, only present if the transaction flag is set
-> - payload length: 2 bytes - the length of the payload
+> - transaction ID: 16 / 0 bytes - only present if the FTransaction flag is set
+> - payload length: 2 / 4 bytes - the length of the payload, 4 bytes if the F32b flag is set
 > ### Payload
 > - payload: anything that fits in a tcp packet
 
@@ -86,7 +86,7 @@ func init() {
 > - FError: Error - If this flag is set, the payload is an error message
 > - FHuff: Huffman - If this flag is set, the payload is compressed using the huffman algorithm
 > - FTransaction: Transaction - If this flag is set, the transaction id is present in the header
-> - FBigLen: Big Length - If this flag is set, the lengths for strings, slices and maps is 4 bytes instead of 2
+> - F32b: 32 bit lengths - If this flag is set, all lengths are 32 bits instead of 16 bits
 
 ## Primitive Types
 TODO
@@ -100,4 +100,19 @@ TODO
   - [ ] Error handling
   - [ ] two-dimensional slices and arrays
   - [ ] type aliases
+- [ ] Benchmarks
+  - [X] Encoding
+  - [X] Decoding
+  - [X] Receive and Respond
+  - [ ] Large messages
+    - [ ] 16b length
+    - [ ] 32b length
+  - [ ] Compression
+- [ ] Documentation
+  - [ ] Examples
+  - [ ] Protocol
+  - [ ] Flags
+  - [ ] Primitive types
+  - [ ] Type registration
+  - [ ] Type syncing
 - [ ] ~~RPC(like) implementation? Actions? Commands? Will require breaking changes to the protocol~~

@@ -35,9 +35,9 @@ const HeaderSizeWithTransactionID = HeaderSize + TransactionIDSize
 
 // MaxTcpMessageBodySize is the maximum size of a message in bytes
 // max tcp packet size is 64KB, hence the subtraction of max header size, just to be safe
-const MaxTcpMessageBodySize = 1<<16 - HeaderSizeWithTransactionID
+const MaxTcpMessageBodySize = 1<<16 - 1
 
-const Max32bMessageBodySize = 1<<32 - HeaderSizeWithTransactionID - LengthSize
+const Max32bMessageBodySize = 1<<32 - 1
 
 type TypeID uint16
 

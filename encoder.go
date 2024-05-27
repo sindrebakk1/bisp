@@ -60,7 +60,7 @@ func (e *Encoder) Encode(m *Message) error {
 	if m.Header.HasFlag(F32b) && bodyLength > Max32bMessageBodySize {
 		return errors.New(fmt.Sprintf("message body too large. length: %d max: %d", bodyLength, Max32bMessageBodySize))
 	}
-	if bodyLength > MaxTcpMessageBodySize && !m.Header.HasFlag(F32b) {
+	if !m.Header.HasFlag(F32b) && bodyLength > MaxTcpMessageBodySize {
 		return errors.New(fmt.Sprintf("message body too large. length: %d max: %d", bodyLength, MaxTcpMessageBodySize))
 	}
 	typeID, err = GetIDFromType(m.Body)

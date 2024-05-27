@@ -489,9 +489,9 @@ func TestEncodeDecodeMessage_Map(t *testing.T) {
 	testEncodeDecodeMessages(t, tcs)
 }
 
-func TestEncodeDecodeMessage_BigLengths(t *testing.T) {
+func TestEncodeDecodeMessage_32bLengths(t *testing.T) {
 	var body string
-	l := (1 << 16 * 2) - 4
+	l := bisp.MaxTcpMessageBodySize * 2
 	for i := 0; i < l; i++ {
 		body += "a"
 	}

@@ -220,6 +220,45 @@ func TestDecodeMessage_String(t *testing.T) {
 	client.Close()
 }
 
+func TestDecodeMessage_32bLengths(t *testing.T) {
+	var body string
+	l := bisp.MaxTcpMessageBodySize * 2
+	for i := 0; i < l; i++ {
+		body += "a"
+	}
+	typeID, err := bisp.GetIDFromType(body)
+	assert.Nil(t, err)
+	testMsg := bisp.Message{
+		Header: bisp.Header{
+			Version:       bisp.V1,
+			Flags:         bisp.FTransaction | bisp.F32b,
+			TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
+			Type:          typeID,
+			Length:        bisp.Length(len(body) + 4),
+		},
+		Body: body,
+	}
+	bodyBytes, err := encodeTestValue(body, true)
+	assert.Nil(t, err)
+	headerBytes := encodeTestHeader(&testMsg.Header, true)
+	msgBytes := append(headerBytes, bodyBytes...)
+
+	client, server := net.Pipe()
+
+	go func() {
+		_, err = server.Write(msgBytes)
+		assert.Nil(t, err)
+		server.Close()
+	}()
+
+	decoder := bisp.NewDecoder(client)
+	var msg bisp.Message
+	err = decoder.Decode(&msg)
+	assert.Nil(t, err)
+	assert.Equal(t, msg, testMsg)
+	client.Close()
+}
+
 func testDecodeBody(t *testing.T, testCases []testCase) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

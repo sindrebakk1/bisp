@@ -67,6 +67,7 @@ func GetTypeRegistry() map[reflect.Type]TypeID {
 
 func init() {
 	RegisterType(nil)
+	RegisterType(byte(0))
 	RegisterType(0)
 	RegisterType(int8(0))
 	RegisterType(int16(0))
@@ -80,5 +81,6 @@ func init() {
 	RegisterType(float32(0))
 	RegisterType(float64(0))
 	RegisterType(false)
+	RegisterType(rune(0))
 	RegisterType("")
 }
