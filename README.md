@@ -73,14 +73,14 @@ func init() {
 ```
 
 ## Protocol
-> ### Header
+> ### Header (6 - 24 bytes)
 > - version: 1 byte - the version of the protocol
 > - flags: 1 byte - flags that can be set to enable extra features
 > - type: 2 bytes - the type ID of the payload
 > - transaction ID: 16 / 0 bytes - only present if the FTransaction flag is set
 > - payload length: 2 / 4 bytes - the length of the payload, 4 bytes if the F32b flag is set
-> ### Payload
-> - payload: anything that fits in a tcp packet
+> ### Payload (0 - 2^16/2^32 bytes)
+> - payload: 0 - 2^16/2^32 bytes - the serialized payload
 
 ## Flags
 > - FError: Error - If this flag is set, the payload is an error message
@@ -92,26 +92,42 @@ func init() {
 TODO
 
 ## TODO
-- [ ] Implement a way to sync the type registry
-- [ ] Implement huffman encoding and decoding
-- [ ] Implement a way to encrypt the payload?
+- [ ] Features:
+  - [X] Transaction ID
+  - [ ] Compression
+  - [ ] Error handling
+  - [ ] Encryption
+  - [ ] Little endian support?
 - [ ] Tests:
   - [x] Arrays
   - [ ] Error handling
-  - [ ] two-dimensional slices and arrays
-  - [ ] type aliases
+  - [ ] Type aliases
+  - [ ] Two-dimensional slices and arrays
 - [ ] Benchmarks
   - [X] Encoding
   - [X] Decoding
   - [X] Receive and Respond
-  - [ ] Large messages
-    - [ ] 16b length
-    - [ ] 32b length
+  - [X] Large messages
+    - [X] 16b length
+    - [X] 32b length
   - [ ] Compression
+- [ ] Optimizations
+  - [ ] Use a pool for the encoder and decoder?
+  - [ ] Use a pool for the huffman encoder and decoder?
+  - [ ] Use unsafe pointers to avoid reflection where reasonable
+  - [X] Large string, slice and array optimizations
+  - [ ] Large struct optimizations
+  - [ ] Large map optimizations
 - [ ] Documentation
   - [ ] Examples
-  - [ ] Protocol
-  - [ ] Flags
+    - [X] Simple
+    - [ ] Complex
+    - [ ] Error handling
+    - [ ] Compression
+    - [ ] Transaction ID
+    - [ ] Encryption
+  - [X] Protocol
+  - [X] Flags
   - [ ] Primitive types
   - [ ] Type registration
   - [ ] Type syncing
