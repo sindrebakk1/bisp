@@ -73,31 +73,39 @@ func init() {
 ```
 
 ## Protocol
-> ### Header (6 - 24 bytes)
+> ### Header (6 <> 24 bytes)
 > - version: 1 byte - the version of the protocol
 > - flags: 1 byte - flags that can be set to enable extra features
 > - type: 2 bytes - the type ID of the payload
-> - transaction ID: 16 / 0 bytes - only present if the FTransaction flag is set
-> - payload length: 2 / 4 bytes - the length of the payload, 4 bytes if the F32b flag is set
-> ### Payload (0 - 2^16/2^32 bytes)
-> - payload: 0 - 2^16/2^32 bytes - the serialized payload
+> - transaction ID: 16 | 0 bytes - only present if the FTransaction flag is set
+> - payload length: 2 | 4 bytes - the length of the payload, 4 bytes if the F32b flag is set
+> ### Payload (0 <> 2^16 | 2^32 bytes)
+> - payload: 0 - 2^16 | 2^32 bytes - the serialized payload
 
 ## Flags
-> - FError: Error - If this flag is set, the payload is an error message
-> - FHuff: Huffman - If this flag is set, the payload is compressed using the huffman algorithm
-> - FTransaction: Transaction - If this flag is set, the transaction id is present in the header
-> - F32b: 32 bit lengths - If this flag is set, all lengths are 32 bits instead of 16 bits
+> FError: Error - If this flag is set, the payload is an error message
+> FTransaction: Transaction - If this flag is set, the transaction id is present in the header
+> F32b: 32 bit lengths - If this flag is set, all lengths are 32 bits instead of 16 bits
+> FHuff: Huffman - If this flag is set, the payload will be compressed using the huffman algorithm
+> FRle: Run Length Encoding - If this flag is set, the payload will be compressed using the Run Length Encoding algorithm
+> FEnc: Encryption - If this flag is set, the payload will be encrypted
+> FProc: Procedure call - If this flag is set, the payload is a procedure call
 
 ## Primitive Types
+TODO
+
+## Procedure Calls
 TODO
 
 ## TODO
 - [ ] Features:
   - [X] Transaction ID
+  - [X] 32 bit lengths
+  - [ ] Procedure calls
+  - [ ] Error handling - only relevant for procedures?
   - [ ] Compression
-  - [ ] Error handling
   - [ ] Encryption
-  - [ ] Little endian support?
+  - [ ] Type syncing
 - [ ] Tests:
   - [x] Arrays
   - [ ] Error handling
@@ -126,9 +134,10 @@ TODO
     - [ ] Compression
     - [ ] Transaction ID
     - [ ] Encryption
+    - [ ] Procedure calls
   - [X] Protocol
   - [X] Flags
+  - [ ] Procedure calls
   - [ ] Primitive types
   - [ ] Type registration
   - [ ] Type syncing
-- [ ] ~~RPC(like) implementation? Actions? Commands? Will require breaking changes to the protocol~~
