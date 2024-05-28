@@ -54,6 +54,70 @@ func (e *Encoder) Encode(m *Message) error {
 	return err
 }
 
+func (e *Encoder) EncodeCall(fn func(...any) any, transactionID TransactionID, args []any) error {
+	e.buf.Reset()
+	var (
+		err         error
+		procedureID TypeID
+		length      int
+		header      *Header
+		headerBytes []byte
+	)
+	procedureID, err = GetProcedureIDFromType(reflect.TypeOf(fn))
+	if err != nil {
+		return err
+	}
+	header = &Header{
+		Flags:         FProcedure,
+		TransactionID: transactionID,
+	}
+	err = e.EncodeProcedureCallBody(fn, args)
+	if err != nil {
+		return err
+	}
+	length = e.buf.Len()
+
+	headerBytes, err = e.EncodeHeader(header, procedureID, length)
+	if err != nil {
+		return err
+	}
+	headerBytes = append(headerBytes, e.buf.Bytes()...)
+	_, err = e.writer.Write(headerBytes)
+	return err
+}
+
+func (e *Encoder) EncodeResponse(fn func(args ...any) any, transactionID TransactionID, res any) error {
+	e.buf.Reset()
+	var (
+		err         error
+		procedureID TypeID
+		length      int
+		header      *Header
+		headerBytes []byte
+	)
+	procedureID, err = GetProcedureIDFromType(reflect.TypeOf(fn))
+	if err != nil {
+		return err
+	}
+	header = &Header{
+		Flags:         FProcedure,
+		TransactionID: transactionID,
+	}
+	err = e.EncodeProcedureResponseBody(fn, res)
+	if err != nil {
+		return err
+	}
+	length = e.buf.Len()
+
+	headerBytes, err = e.EncodeHeader(header, procedureID, length)
+	if err != nil {
+		return err
+	}
+	headerBytes = append(headerBytes, e.buf.Bytes()...)
+	_, err = e.writer.Write(headerBytes)
+	return err
+}
+
 func (e *Encoder) EncodeHeader(h *Header, typeID TypeID, length int) ([]byte, error) {
 	h.Version = CurrentVersion
 	h.Type = typeID
@@ -103,12 +167,66 @@ func (e *Encoder) EncodeBody(v any, l32 bool) error {
 	if kind == reflect.Ptr {
 		val = val.Elem()
 	}
-	underlyingType := getUnderlyingType(val, val.Kind())
+	underlyingType := getUnderlyingType(val, kind)
 	if val.Type() != underlyingType {
 		val = val.Convert(underlyingType)
 	}
 	err := e.encodeValue(val, kind, l32)
 	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (e *Encoder) EncodeProcedureCallBody(fn func(any, any) any, args ...any) error {
+	fnType := reflect.TypeOf(fn)
+	if fnType.NumIn() != len(args) {
+		return errors.New("argument count mismatch")
+	}
+	for i, arg := range args {
+		val := reflect.ValueOf(arg)
+		kind := val.Kind()
+		if kind == reflect.Invalid {
+			return errors.New("invalid return type")
+		}
+		if kind == reflect.Ptr {
+			val = val.Elem()
+		}
+		if val.Type() != fnType.Out(i) {
+			return errors.New("return type mismatch")
+		}
+		underlyingType := getUnderlyingType(val, kind)
+		if val.Type() != underlyingType {
+			val = val.Convert(underlyingType)
+		}
+		if err := e.encodeValue(val, kind, false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *Encoder) EncodeProcedureResponseBody(fn func(...any) any, res any) error {
+	fnType := reflect.TypeOf(fn)
+	if fnType.NumOut() != 1 {
+		return errors.New("procedure must have exactly one return value")
+	}
+	val := reflect.ValueOf(res)
+	kind := val.Kind()
+	if kind == reflect.Invalid {
+		return errors.New("invalid return type")
+	}
+	if kind == reflect.Ptr {
+		val = val.Elem()
+	}
+	if val.Type() != fnType.Out(0) {
+		return errors.New("return type mismatch")
+	}
+	underlyingType := getUnderlyingType(val, kind)
+	if val.Type() != underlyingType {
+		val = val.Convert(underlyingType)
+	}
+	if err := e.encodeValue(val, kind, false); err != nil {
 		return err
 	}
 	return nil

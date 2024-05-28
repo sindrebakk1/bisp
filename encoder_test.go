@@ -251,6 +251,10 @@ func TestEncodeMessage_32bLengths(t *testing.T) {
 	assert.Equal(t, expected, bytes)
 }
 
+func TestEncodeProcedureCallBody(t *testing.T) {
+	t.Skip("Not implemented")
+}
+
 func testEncodeBody(t *testing.T, testCases []testCase) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

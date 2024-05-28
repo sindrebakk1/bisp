@@ -27,6 +27,8 @@ const (
 	F32b Flag = 1 << 2
 	// FHuff Flag is set if the message body is compressed using huffman encoding.
 	FHuff Flag = 1 << 3
+	// FProcedure Flag is set if the message is a procedure call.
+	FProcedure Flag = 1 << 4
 )
 
 const HeaderSize = VersionSize + FlagsSize + TypeIDSize + LengthSize
