@@ -101,6 +101,7 @@ TODO
 - [ ] Features:
   - [X] Transaction ID
   - [X] 32 bit lengths
+  - [ ] Register types by name to avoid having to register them in the same order
   - [ ] Procedure calls
   - [ ] Error handling - only relevant for procedures?
   - [ ] Compression
