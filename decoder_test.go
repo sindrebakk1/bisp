@@ -78,12 +78,6 @@ func TestDecodeBody_Boolean(t *testing.T) {
 }
 
 func TestDecodeBody_Slice(t *testing.T) {
-	type testStruct struct {
-		A int
-		B string
-		C bool
-	}
-	bisp.RegisterType(testStruct{})
 	testCases := []testCase{
 		{value: []int{1, 2, 3}, name: "int slice"},
 		{value: []uint{4, 5, 6}, name: "uint slice"},
@@ -97,18 +91,6 @@ func TestDecodeBody_Slice(t *testing.T) {
 }
 
 func TestDecodeBody_Array(t *testing.T) {
-	type testStruct struct {
-		A int
-		B string
-		C bool
-	}
-	bisp.RegisterType([3]int{})
-	bisp.RegisterType([3]uint{})
-	bisp.RegisterType([3]float32{})
-	bisp.RegisterType([3]float64{})
-	bisp.RegisterType([3]string{})
-	bisp.RegisterType([3]bool{})
-	bisp.RegisterType([3]testStruct{})
 	testCases := []testCase{
 		{value: [3]int{1, 2, 3}, name: "int array"},
 		{value: [3]uint{4, 5, 6}, name: "uint array"},
@@ -122,46 +104,6 @@ func TestDecodeBody_Array(t *testing.T) {
 }
 
 func TestDecodeBody_Struct(t *testing.T) {
-	type testStruct struct {
-		A int
-		B string
-		C bool
-	}
-	type TestStruct struct {
-		A int
-		B string
-		C bool
-	}
-	type testStructSliceField struct {
-		Slice []int
-	}
-	type testStructStructField struct {
-		Struct testStruct
-		B      string
-	}
-	type testStructStructFieldSliceField struct {
-		Structs []testStruct
-	}
-	type testStructEmbeddedPrivateStruct struct {
-		testStruct
-		B string
-	}
-	type testStructEmbeddedStruct struct {
-		TestStruct
-		B string
-	}
-	type testStructPrivateFields struct {
-		a int
-		b string
-		c bool
-	}
-	bisp.RegisterType(testStruct{})
-	bisp.RegisterType(testStructSliceField{})
-	bisp.RegisterType(testStructStructField{})
-	bisp.RegisterType(testStructStructFieldSliceField{})
-	bisp.RegisterType(testStructEmbeddedPrivateStruct{})
-	bisp.RegisterType(testStructEmbeddedStruct{})
-	bisp.RegisterType(testStructPrivateFields{})
 	testCases := []testCase{
 		{value: testStruct{1, "a", true}, name: "struct"},
 		{value: testStructSliceField{[]int{1, 2, 3}}, name: "struct with slice"},
@@ -175,9 +117,6 @@ func TestDecodeBody_Struct(t *testing.T) {
 }
 
 func TestDecodeBody_Map(t *testing.T) {
-	bisp.RegisterType(map[int]string{})
-	bisp.RegisterType(map[TestEnum]string{})
-	bisp.RegisterType(map[string]int{})
 	testCases := []testCase{
 		{value: map[int]string{1: "a", 2: "b", 3: "c"}, name: "int > string map"},
 		{value: map[TestEnum]string{TestEnum1: "a", TestEnum2: "b", TestEnum3: "c"}, name: "enum > string map"},

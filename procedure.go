@@ -1,35 +1,92 @@
 package bisp
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 )
 
-type ProcedureFunc func(args []any) any
+type ProcedureKind bool
 
-var (
-	pRegistry               = make(map[reflect.Type]TypeID, 32)
-	reversePRegistry        = make(map[TypeID]reflect.Type, 32)
-	nextProcedureID  TypeID = 1
+const (
+	Call     ProcedureKind = false
+	Response ProcedureKind = true
 )
 
-func GetProcedureIDFromType(t reflect.Type) (TypeID, error) {
-	typeID, exists := pRegistry[t]
-	if !exists {
-		return 0, fmt.Errorf("type not registered")
+func (p ProcedureKind) String() string {
+	if p == Call {
+		return "Call"
 	}
-	return typeID, nil
+	return "Response"
 }
 
-func RegisterProcedure(fn ProcedureFunc) TypeID {
-	t := reflect.TypeOf(fn)
-	if t.Kind() != reflect.Func || t.NumOut() == 0 {
-		return 0
+var (
+	pNameRegistry           = make(map[string]TypeID, 16)
+	pTypeRegistry           = make(map[reflect.Type]TypeID, 16)
+	pReverseRegistry        = make(map[TypeID]reflect.Type, 16)
+	nextPID          TypeID = 1
+)
+
+type Procedure[T any] struct {
+	Out           T
+	TransactionID TransactionID
+}
+
+func RegisterProcedure(p struct{}) TypeID {
+	t := reflect.TypeOf(p)
+	name := t.Name()
+	if t.Kind() != reflect.Struct {
+		panic("procedure must be a struct")
 	}
-	if _, ok := pRegistry[t]; !ok {
-		pRegistry[t] = nextProcedureID
-		reversePRegistry[nextProcedureID] = t
-		nextProcedureID++
+	if _, ok := pTypeRegistry[t]; ok {
+		return pTypeRegistry[t]
 	}
-	return pRegistry[t]
+	if _, ok := t.FieldByName("Procedure"); !ok {
+		panic("procedure must have an embedded Procedure")
+	}
+	outField, ok := t.FieldByName("Out")
+	if !ok {
+		panic("procedure must have an Out field")
+	}
+	kind := outField.Type.Kind()
+	if kind == reflect.Interface || kind == reflect.Ptr || kind == reflect.Invalid {
+		panic("procedure Out field must be a concrete type and not invalid")
+	}
+	if _, ok = pNameRegistry[name]; !ok {
+		registerParamTypes(t)
+
+		pNameRegistry[name] = nextPID
+		pTypeRegistry[t] = nextPID
+		pReverseRegistry[nextPID] = t
+
+		nextPID++
+	}
+
+	return pNameRegistry[name]
+}
+
+func registerParamTypes(t reflect.Type) {
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if field.Name == "Procedure" || field.Name == "TransactionID" {
+			continue
+		}
+		RegisterType(reflect.New(field.Type).Elem().Interface())
+	}
+}
+
+func GetProcedureID(p struct{}) (TypeID, error) {
+	ID, ok := pTypeRegistry[reflect.TypeOf(p)]
+	if !ok {
+		return 0, errors.New(fmt.Sprintf("procedure not registered: %s", reflect.TypeOf(p)))
+	}
+	return ID, nil
+}
+
+func GetProcedureFromID(id TypeID) (reflect.Type, error) {
+	typ, exists := pReverseRegistry[id]
+	if !exists {
+		return nil, errors.New(fmt.Sprintf("procedure with id %d not registered", id))
+	}
+	return typ, nil
 }

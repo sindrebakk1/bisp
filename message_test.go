@@ -140,12 +140,6 @@ func TestEncodeDecodeMessage_Boolean(t *testing.T) {
 }
 
 func TestEncodeDecodeMessage_Slice(t *testing.T) {
-	type testStruct3 struct {
-		A int
-		B string
-		C bool
-	}
-	bisp.RegisterType(testStruct3{})
 	tcs := []testCase{
 		{
 			value: bisp.Message{
@@ -185,7 +179,7 @@ func TestEncodeDecodeMessage_Slice(t *testing.T) {
 		},
 		{
 			value: bisp.Message{
-				Body: []testStruct3{{1, "a", true}, {2, "B", false}},
+				Body: []testStruct{{1, "a", true}, {2, "B", false}},
 			},
 			name: "struct slice",
 		},
@@ -194,18 +188,6 @@ func TestEncodeDecodeMessage_Slice(t *testing.T) {
 }
 
 func TestEncodeDecodeMessage_Array(t *testing.T) {
-	type testStruct3 struct {
-		A int
-		B string
-		C bool
-	}
-	bisp.RegisterType([3]int{})
-	bisp.RegisterType([3]uint{})
-	bisp.RegisterType([3]float32{})
-	bisp.RegisterType([3]float64{})
-	bisp.RegisterType([3]string{})
-	bisp.RegisterType([3]bool{})
-	bisp.RegisterType([3]testStruct3{})
 	tcs := []testCase{
 		{
 			value: bisp.Message{
@@ -245,7 +227,7 @@ func TestEncodeDecodeMessage_Array(t *testing.T) {
 		},
 		{
 			value: bisp.Message{
-				Body: [3]testStruct3{{1, "a", true}, {2, "B", false}, {3, "B", true}},
+				Body: [3]testStruct{{1, "a", true}, {2, "B", false}, {3, "B", true}},
 			},
 			name: "struct array",
 		},
@@ -254,85 +236,44 @@ func TestEncodeDecodeMessage_Array(t *testing.T) {
 }
 
 func TestEncodeDecodeMessage_Struct(t *testing.T) {
-	type testStruct3 struct {
-		A int
-		B string
-		C bool
-	}
-	type TestStruct3 struct {
-		A int
-		B string
-		C bool
-	}
-	type testStructSliceField3 struct {
-		Slice []int
-	}
-	type testStructStructField3 struct {
-		Struct testStruct3
-		B      string
-	}
-	type testStructStructFieldSliceField3 struct {
-		Structs []testStruct3
-	}
-	type testStructEmbeddedPrivateStruct3 struct {
-		testStruct3
-		B string
-	}
-	type testStructEmbeddedStruct3 struct {
-		TestStruct3
-		B string
-	}
-	type testStructPrivateFields3 struct {
-		a int
-		b string
-		c bool
-	}
-	bisp.RegisterType(testStruct3{})
-	bisp.RegisterType(testStructSliceField3{})
-	bisp.RegisterType(testStructStructField3{})
-	bisp.RegisterType(testStructStructFieldSliceField3{})
-	bisp.RegisterType(testStructEmbeddedPrivateStruct3{})
-	bisp.RegisterType(testStructEmbeddedStruct3{})
-	bisp.RegisterType(testStructPrivateFields3{})
-
 	var (
 		testStructEmbeddedPrivateStruct3ID bisp.TypeID
 		testStructPrivateFields3ID         bisp.TypeID
 		err                                error
 	)
-	testStructEmbeddedPrivateStruct3ID, err = bisp.GetIDFromType(testStructEmbeddedPrivateStruct3{})
+	testStructEmbeddedPrivateStruct3ID, err = bisp.GetIDFromType(testStructEmbeddedPrivateStruct{})
 	assert.NoError(t, err)
-	testStructPrivateFields3ID, err = bisp.GetIDFromType(testStructPrivateFields3{})
+	testStructPrivateFields3ID, err = bisp.GetIDFromType(testStructPrivateFields{})
 	assert.NoError(t, err)
 
 	tcs := []testCase{
 		{
 			value: bisp.Message{
-				Body: testStruct3{1, "a", true},
+				Body: testStruct{1, "a", true},
 			},
 			name: "struct",
 		},
 		{
 			value: bisp.Message{
-				Body: testStructSliceField3{[]int{1, 2, 3}},
+				Body: testStructSliceField{[]int{1, 2, 3}},
 			},
 			name: "struct with slice",
 		},
 		{
 			value: bisp.Message{
-				Body: testStructStructField3{testStruct3{1, "a", true}, "b"},
+				Body: testStructStructField{testStruct{1, "a", true}, "b"},
 			},
 			name: "struct with struct",
 		},
 		{
 			value: bisp.Message{
-				Body: testStructStructFieldSliceField3{[]testStruct3{{1, "a", true}, {1, "a", true}}},
+				Body: testStructStructFieldSliceField{[]testStruct{{1, "a", true}, {1, "a", true}}},
 			},
 			name: "struct with struct slice",
 		},
 		{
 			value: bisp.Message{
-				Body: testStructEmbeddedPrivateStruct3{testStruct3{1, "a", true}, "b"},
+				Body: testStructEmbeddedPrivateStruct{testStruct{1, "a", true}, "b"},
 			},
 			expected: bisp.Message{
 				Header: bisp.Header{
@@ -340,19 +281,19 @@ func TestEncodeDecodeMessage_Struct(t *testing.T) {
 					Type:    testStructEmbeddedPrivateStruct3ID,
 					Length:  0x3,
 				},
-				Body: testStructEmbeddedPrivateStruct3{testStruct3{}, "b"},
+				Body: testStructEmbeddedPrivateStruct{testStruct{}, "b"},
 			},
 			name: "struct with embedded private struct",
 		},
 		{
 			value: bisp.Message{
-				Body: testStructEmbeddedStruct3{TestStruct3{1, "a", true}, "b"},
+				Body: testStructEmbeddedStruct{TestStruct{1, "a", true}, "b"},
 			},
 			name: "struct with embedded struct",
 		},
 		{
 			value: bisp.Message{
-				Body: testStructPrivateFields3{1, "a", true},
+				Body: testStructPrivateFields{1, "a", true},
 			},
 			expected: bisp.Message{
 				Header: bisp.Header{
@@ -360,7 +301,7 @@ func TestEncodeDecodeMessage_Struct(t *testing.T) {
 					Type:    testStructPrivateFields3ID,
 					Length:  0,
 				},
-				Body: testStructPrivateFields3{},
+				Body: testStructPrivateFields{},
 			},
 			name: "struct with private fields",
 		},
@@ -420,12 +361,6 @@ func TestEncodeDecodeMessage_Nil(t *testing.T) {
 }
 
 func TestEncodeDecodeMessage_Enum(t *testing.T) {
-	type testStructEnum struct {
-		A TestEnum
-		B TestEnum
-		C []TestEnum
-	}
-	bisp.RegisterType(testStructEnum{})
 	tcs := []testCase{
 		{
 			value: bisp.Message{
@@ -454,11 +389,6 @@ func TestEncodeDecodeMessage_Enum(t *testing.T) {
 }
 
 func TestEncodeDecodeMessage_Map(t *testing.T) {
-	bisp.RegisterType(map[int]string{})
-	bisp.RegisterType(map[TestEnum]string{})
-	bisp.RegisterType(map[string]int{})
-	bisp.RegisterType(map[string]TestEnum{})
-	bisp.RegisterType(map[string][]int{})
 	tcs := []testCase{
 		{
 			value: bisp.Message{

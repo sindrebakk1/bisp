@@ -7,6 +7,7 @@ import (
 )
 
 var (
+	nameRegistry           = make(map[string]TypeID, 32)
 	typeRegistry           = make(map[reflect.Type]TypeID, 32)
 	reverseRegistry        = make(map[TypeID]reflect.Type, 32)
 	nextID          TypeID = 0
@@ -31,21 +32,35 @@ var (
 
 func RegisterType(value interface{}) TypeID {
 	t := reflect.TypeOf(value)
-	if _, ok := typeRegistry[t]; !ok {
+	var name string
+	if t == nil {
+		name = "nil"
+	} else {
+		name = t.String()
+	}
+	if _, ok := nameRegistry[name]; !ok {
+		nameRegistry[name] = nextID
 		typeRegistry[t] = nextID
 		reverseRegistry[nextID] = t
 
 		nextID++
+		if t != nil && t.Kind() != reflect.Slice && t.Kind() != reflect.Array && t.Kind() != reflect.Map {
+			slice := reflect.New(reflect.SliceOf(t)).Elem().Interface()
+			RegisterType(slice)
+		}
 	}
-	if t != nil && t.Kind() != reflect.Slice && t.Kind() != reflect.Array && t.Kind() != reflect.Map {
-		slice := reflect.New(reflect.SliceOf(t)).Elem().Interface()
-		RegisterType(slice)
-	}
-	return typeRegistry[t]
+	return nameRegistry[name]
 }
 
 func GetIDFromType(value interface{}) (TypeID, error) {
-	ID, exists := typeRegistry[reflect.TypeOf(value)]
+	t := reflect.TypeOf(value)
+	var name string
+	if t == nil {
+		name = "nil"
+	} else {
+		name = t.String()
+	}
+	ID, exists := nameRegistry[name]
 	if !exists {
 		return 0, errors.New("type not registered")
 	}

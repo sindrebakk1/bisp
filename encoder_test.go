@@ -72,12 +72,6 @@ func TestEncodeBody_Boolean(t *testing.T) {
 }
 
 func TestEncodeBody_Slice(t *testing.T) {
-	type testStruct2 struct {
-		A int
-		B string
-		C bool
-	}
-	bisp.RegisterType(testStruct2{})
 	testCases := []testCase{
 		{value: []int{1, 2, 3}, name: "int slice"},
 		{value: []uint{4, 5, 6}, name: "uint slice"},
@@ -85,18 +79,12 @@ func TestEncodeBody_Slice(t *testing.T) {
 		{value: []float64{4.4, 5.5, 6.6}, name: "float64 slice"},
 		{value: []string{"a", "b", "c"}, name: "string slice"},
 		{value: []bool{true, false, true}, name: "bool slice"},
-		{value: []testStruct2{{1, "a", true}, {2, "b", false}}, name: "struct slice"},
+		{value: []testStruct{{1, "a", true}, {2, "b", false}}, name: "struct slice"},
 	}
 	testEncodeBody(t, testCases)
 }
 
 func TestEncodeBody_Array(t *testing.T) {
-	type testStruct2 struct {
-		A int
-		B string
-		C bool
-	}
-	bisp.RegisterType(testStruct2{})
 	testCases := []testCase{
 		{value: [3]int{1, 2, 3}, name: "int array"},
 		{value: [3]uint{4, 5, 6}, name: "uint array"},
@@ -104,60 +92,20 @@ func TestEncodeBody_Array(t *testing.T) {
 		{value: [3]float64{4.4, 5.5, 6.6}, name: "float64 array"},
 		{value: [3]string{"a", "b", "c"}, name: "string array"},
 		{value: [3]bool{true, false, true}, name: "bool array"},
-		{value: [3]testStruct2{{1, "a", true}, {2, "b", false}}, name: "struct array"},
+		{value: [3]testStruct{{1, "a", true}, {2, "b", false}}, name: "struct array"},
 	}
 	testEncodeBody(t, testCases)
 }
 
 func TestEncodeBody_Struct(t *testing.T) {
-	type testStruct2 struct {
-		A int
-		B string
-		C bool
-	}
-	type TestStruct2 struct {
-		A int
-		B string
-		C bool
-	}
-	type testStructSliceField2 struct {
-		Slice []int
-	}
-	type testStructStructField2 struct {
-		Struct testStruct2
-		B      string
-	}
-	type testStructStructFieldSliceField2 struct {
-		Structs []testStruct2
-	}
-	type testStructEmbeddedPrivateStruct2 struct {
-		testStruct2
-		B string
-	}
-	type testStructEmbeddedStruct2 struct {
-		TestStruct2
-		B string
-	}
-	type testStructPrivateFields2 struct {
-		a int
-		b string
-		c bool
-	}
-	bisp.RegisterType(testStruct2{})
-	bisp.RegisterType(testStructSliceField2{})
-	bisp.RegisterType(testStructStructField2{})
-	bisp.RegisterType(testStructStructFieldSliceField2{})
-	bisp.RegisterType(testStructEmbeddedPrivateStruct2{})
-	bisp.RegisterType(testStructEmbeddedStruct2{})
-	bisp.RegisterType(testStructPrivateFields2{})
 	testCases := []testCase{
-		{value: testStruct2{1, "a", true}, name: "struct"},
-		{value: testStructSliceField2{[]int{1, 2, 3}}, name: "struct with slice"},
-		{value: testStructStructField2{testStruct2{1, "a", true}, "b"}, name: "struct with struct"},
-		{value: testStructStructFieldSliceField2{[]testStruct2{{1, "a", true}, {2, "b", false}}}, name: "struct with struct slice"},
-		{value: testStructEmbeddedPrivateStruct2{testStruct2{1, "a", true}, "b"}, expected: testStructEmbeddedPrivateStruct2{testStruct2{}, "b"}, name: "struct with embedded private struct"},
-		{value: testStructEmbeddedStruct2{TestStruct2{1, "a", true}, "b"}, name: "struct with embedded struct"},
-		{value: testStructPrivateFields2{1, "a", true}, expected: testStructPrivateFields2{}, name: "struct with private fields"},
+		{value: testStruct{1, "a", true}, name: "struct"},
+		{value: testStructSliceField{[]int{1, 2, 3}}, name: "struct with slice"},
+		{value: testStructStructField{testStruct{1, "a", true}, "b"}, name: "struct with struct"},
+		{value: testStructStructFieldSliceField{[]testStruct{{1, "a", true}, {2, "b", false}}}, name: "struct with struct slice"},
+		{value: testStructEmbeddedPrivateStruct{testStruct{1, "a", true}, "b"}, expected: testStructEmbeddedPrivateStruct{testStruct{}, "b"}, name: "struct with embedded private struct"},
+		{value: testStructEmbeddedStruct{TestStruct{1, "a", true}, "b"}, name: "struct with embedded struct"},
+		{value: testStructPrivateFields{1, "a", true}, expected: testStructPrivateFields{}, name: "struct with private fields"},
 	}
 	testEncodeBody(t, testCases)
 }
@@ -249,10 +197,6 @@ func TestEncodeMessage_32bLengths(t *testing.T) {
 	}
 	expected = append(expected, b...)
 	assert.Equal(t, expected, bytes)
-}
-
-func TestEncodeProcedureCallBody(t *testing.T) {
-	t.Skip("Not implemented")
 }
 
 func testEncodeBody(t *testing.T, testCases []testCase) {

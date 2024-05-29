@@ -24,11 +24,15 @@ func NewEncoder(w io.Writer) *Encoder {
 func (e *Encoder) Encode(m *Message) error {
 	e.buf.Reset()
 	var (
-		err         error
-		typeID      TypeID
-		length      int
-		headerBytes []byte
+		err      error
+		typeID   TypeID
+		length   int
+		msgBytes []byte
 	)
+	typeID, err = GetIDFromType(m.Body)
+	if err != nil {
+		return err
+	}
 	l32 := m.Header.HasFlag(F32b)
 	err = e.EncodeBody(m.Body, l32)
 	if err != nil {
@@ -41,80 +45,46 @@ func (e *Encoder) Encode(m *Message) error {
 	if !l32 && length > MaxTcpMessageBodySize {
 		return errors.New(fmt.Sprintf("message body too large. length: %d max: %d", length, MaxTcpMessageBodySize))
 	}
-	typeID, err = GetIDFromType(m.Body)
+	msgBytes, err = e.EncodeHeader(&m.Header, typeID, length)
 	if err != nil {
 		return err
 	}
-	headerBytes, err = e.EncodeHeader(&m.Header, typeID, length)
-	if err != nil {
-		return err
-	}
-	headerBytes = append(headerBytes, e.buf.Bytes()...)
-	_, err = e.writer.Write(headerBytes)
+	msgBytes = append(msgBytes, e.buf.Bytes()...)
+	_, err = e.writer.Write(msgBytes)
 	return err
 }
 
-func (e *Encoder) EncodeCall(fn func(...any) any, transactionID TransactionID, args []any) error {
+func (e *Encoder) EncodeProcedure(p struct{}, kind ProcedureKind) error {
 	e.buf.Reset()
 	var (
-		err         error
-		procedureID TypeID
-		length      int
-		header      *Header
-		headerBytes []byte
+		err           error
+		procedureID   TypeID
+		transactionID TransactionID
+		length        int
+		msgBytes      []byte
+		header        Header
 	)
-	procedureID, err = GetProcedureIDFromType(reflect.TypeOf(fn))
+	procedureID, err = GetProcedureID(p)
 	if err != nil {
 		return err
 	}
-	header = &Header{
-		Flags:         FProcedure,
-		TransactionID: transactionID,
-	}
-	err = e.EncodeProcedureCallBody(fn, args)
-	if err != nil {
+	header.SetFlag(FProcedure)
+
+	v := reflect.ValueOf(p)
+	if transactionID, err = e.encodeProcedure(v, procedureID, kind == Response); err != nil {
 		return err
 	}
+	header.TransactionID = transactionID
 	length = e.buf.Len()
-
-	headerBytes, err = e.EncodeHeader(header, procedureID, length)
+	if length > MaxTcpMessageBodySize {
+		return errors.New(fmt.Sprintf("message body too large. length: %d max: %d", length, MaxTcpMessageBodySize))
+	}
+	msgBytes, err = e.EncodeHeader(&header, procedureID, length)
 	if err != nil {
 		return err
 	}
-	headerBytes = append(headerBytes, e.buf.Bytes()...)
-	_, err = e.writer.Write(headerBytes)
-	return err
-}
-
-func (e *Encoder) EncodeResponse(fn func(args ...any) any, transactionID TransactionID, res any) error {
-	e.buf.Reset()
-	var (
-		err         error
-		procedureID TypeID
-		length      int
-		header      *Header
-		headerBytes []byte
-	)
-	procedureID, err = GetProcedureIDFromType(reflect.TypeOf(fn))
-	if err != nil {
-		return err
-	}
-	header = &Header{
-		Flags:         FProcedure,
-		TransactionID: transactionID,
-	}
-	err = e.EncodeProcedureResponseBody(fn, res)
-	if err != nil {
-		return err
-	}
-	length = e.buf.Len()
-
-	headerBytes, err = e.EncodeHeader(header, procedureID, length)
-	if err != nil {
-		return err
-	}
-	headerBytes = append(headerBytes, e.buf.Bytes()...)
-	_, err = e.writer.Write(headerBytes)
+	msgBytes = append(msgBytes, e.buf.Bytes()...)
+	_, err = e.writer.Write(msgBytes)
 	return err
 }
 
@@ -178,66 +148,44 @@ func (e *Encoder) EncodeBody(v any, l32 bool) error {
 	return nil
 }
 
-func (e *Encoder) EncodeProcedureCallBody(fn func(any, any) any, args ...any) error {
-	fnType := reflect.TypeOf(fn)
-	if fnType.NumIn() != len(args) {
-		return errors.New("argument count mismatch")
-	}
-	for i, arg := range args {
-		val := reflect.ValueOf(arg)
-		kind := val.Kind()
-		if kind == reflect.Invalid {
-			return errors.New("invalid return type")
-		}
-		if kind == reflect.Ptr {
-			val = val.Elem()
-		}
-		if val.Type() != fnType.Out(i) {
-			return errors.New("return type mismatch")
-		}
-		underlyingType := getUnderlyingType(val, kind)
-		if val.Type() != underlyingType {
-			val = val.Convert(underlyingType)
-		}
-		if err := e.encodeValue(val, kind, false); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (e *Encoder) EncodeProcedureResponseBody(fn func(...any) any, res any) error {
-	fnType := reflect.TypeOf(fn)
-	if fnType.NumOut() != 1 {
-		return errors.New("procedure must have exactly one return value")
-	}
-	val := reflect.ValueOf(res)
-	kind := val.Kind()
-	if kind == reflect.Invalid {
-		return errors.New("invalid return type")
-	}
-	if kind == reflect.Ptr {
-		val = val.Elem()
-	}
-	if val.Type() != fnType.Out(0) {
-		return errors.New("return type mismatch")
-	}
-	underlyingType := getUnderlyingType(val, kind)
-	if val.Type() != underlyingType {
-		val = val.Convert(underlyingType)
-	}
-	if err := e.encodeValue(val, kind, false); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (e *Encoder) Bytes() []byte {
 	return e.buf.Bytes()
 }
 
 func (e *Encoder) Reset() {
 	e.buf.Reset()
+}
+
+func (e *Encoder) encodeProcedure(p reflect.Value, id TypeID, isReturn bool) (TransactionID, error) {
+	var transactionID TransactionID
+	t, ok := pReverseRegistry[id]
+	if !ok {
+		return transactionID, errors.New(fmt.Sprintf("procedure %s not registered", p.Type().Name()))
+	}
+
+	transactionField := p.FieldByName("TransactionID")
+	if transactionField.IsValid() && transactionField.Type() == reflect.TypeOf(transactionID) {
+		transactionID = transactionField.Interface().(TransactionID)
+	}
+
+	if isReturn {
+		field := p.FieldByName("Out")
+		if err := e.encodeValue(field, field.Kind(), false); err != nil {
+			return transactionID, err
+		}
+		return transactionID, nil
+	}
+	for i := range t.NumField() {
+		tField := t.Field(i)
+		if tField.Name == "Procedure" || tField.Name == "TransactionID" || tField.Name == "Out" {
+			continue
+		}
+		field := p.FieldByName(tField.Name)
+		if err := e.encodeValue(field, field.Kind(), false); err != nil {
+			return transactionID, err
+		}
+	}
+	return transactionID, nil
 }
 
 func (e *Encoder) encodeValue(val reflect.Value, kind reflect.Kind, l32 bool) error {

@@ -27,7 +27,7 @@ const (
 	F32b Flag = 1 << 2
 	// FHuff Flag is set if the message body is compressed using huffman encoding.
 	FHuff Flag = 1 << 3
-	// FProcedure Flag is set if the message is a procedure call.
+	// FProcedure Flag is set if the message is a Procedure call.
 	FProcedure Flag = 1 << 4
 )
 
@@ -85,4 +85,9 @@ func (h *Header) Len() int {
 type Message struct {
 	Header Header
 	Body   interface{}
+}
+
+type TMessage[T any] struct {
+	Header Header
+	Body   T
 }
