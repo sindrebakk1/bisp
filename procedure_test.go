@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/sindrebakk1/bisp"
 	"github.com/stretchr/testify/assert"
+	"net"
 	"reflect"
 	"testing"
 )
@@ -157,7 +158,7 @@ func TestEncodeProcedure_TransactionID(t *testing.T) {
 			t.Fatal(err)
 		}
 		res := buf.Bytes()
-		expected := getExpectedProcedureBytes(t, pWithTransactionID, bisp.Call, true)
+		expected := encodeTestProcedure(t, pWithTransactionID, bisp.Call, true)
 		assert.Equal(t, expected, res)
 	})
 	t.Run("response", func(t *testing.T) {
@@ -168,9 +169,24 @@ func TestEncodeProcedure_TransactionID(t *testing.T) {
 			t.Fatal(err)
 		}
 		res := buf.Bytes()
-		expected := getExpectedProcedureBytes(t, pWithTransactionID, bisp.Response, true)
+		expected := encodeTestProcedure(t, pWithTransactionID, bisp.Response, true)
 		assert.Equal(t, expected, res)
 	})
+}
+
+func TestDecodeProcedure_Call(t *testing.T) {
+	tcs := []testCase{
+		{name: "string", value: pString},
+		{name: "int", value: pInt},
+		{name: "slice", value: pSlice},
+		{name: "array", value: pArray},
+		{name: "struct", value: pStruct},
+		{name: "map", value: pMap},
+		{name: "enum", value: pEnum},
+		{name: "multiple", value: pMultipleParams},
+	}
+
+	testDecodeProcedures(t, tcs, bisp.Call)
 }
 
 func encodeProcedure(t *testing.T, p any, kind bisp.PKind) []byte {
@@ -186,14 +202,36 @@ func encodeProcedure(t *testing.T, p any, kind bisp.PKind) []byte {
 func testEncodeProcedures(t *testing.T, tcs []testCase, kind bisp.PKind) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
-			expected := getExpectedProcedureBytes(t, tc.value, kind, false)
+			expected := encodeTestProcedure(t, tc.value, kind, false)
 			res := encodeProcedure(t, tc.value, kind)
 			assert.Equal(t, expected, res)
 		})
 	}
 }
 
-func getExpectedProcedureBytes(t *testing.T, p any, kind bisp.PKind, tID bool) []byte {
+func testDecodeProcedures(t *testing.T, tcs []testCase, kind bisp.PKind) {
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded := encodeTestProcedure(t, tc.value, kind, false)
+
+			client, server := net.Pipe()
+			go func() {
+				_, err := server.Write(encoded)
+				assert.Nil(t, err)
+				server.Close()
+			}()
+
+			decoder := bisp.NewDecoder(client)
+
+			var msg bisp.Message
+			err := decoder.Decode(&msg)
+			assert.Nil(t, err)
+			assert.Equal(t, tc.value, msg.Body)
+		})
+	}
+}
+
+func encodeTestProcedure(t *testing.T, p any, kind bisp.PKind, tID bool) []byte {
 	pID, err := bisp.GetProcedureID(p)
 	if err != nil {
 		t.Fatal(err)
