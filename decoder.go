@@ -37,6 +37,18 @@ func (d *Decoder) Decode(msg *Message) error {
 	return nil
 }
 
+func TDecode[T any](d *Decoder) (*TMessage[T], error) {
+	var msg Message
+	err := d.Decode(&msg)
+	if err != nil {
+		return nil, err
+	}
+	return &TMessage[T]{
+		Header: msg.Header,
+		Body:   msg.Body.(T),
+	}, nil
+}
+
 func (d *Decoder) DecodeHeader() (*Header, error) {
 	var header Header
 	n, err := io.CopyN(d.buf, d.reader, HeaderSize)
