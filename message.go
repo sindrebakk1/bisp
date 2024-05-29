@@ -1,5 +1,11 @@
 package bisp
 
+import (
+	"errors"
+	"fmt"
+	"reflect"
+)
+
 const (
 	VersionSize       = 1
 	FlagsSize         = 1
@@ -71,9 +77,24 @@ func (h *Header) ClearFlag(f Flag) {
 	h.Flags &= ^f
 }
 
+// HasTransactionID returns true if the header has a transaction ID. Will not update the header.
+func (h *Header) HasTransactionID() bool {
+	if h.HasFlag(FTransaction) {
+		return true
+	}
+	hasTransactionID := false
+	for _, b := range h.TransactionID {
+		if b != 0 {
+			hasTransactionID = true
+			break
+		}
+	}
+	return hasTransactionID
+}
+
 func (h *Header) Len() int {
 	l := HeaderSize
-	if h.HasFlag(FTransaction) {
+	if h.HasTransactionID() {
 		l += TransactionIDSize
 	}
 	if h.HasFlag(F32b) {
@@ -85,6 +106,26 @@ func (h *Header) Len() int {
 type Message struct {
 	Header Header
 	Body   interface{}
+}
+
+func (m *Message) IsError() bool {
+	return m.Header.IsError()
+}
+
+func (m *Message) Error() error {
+	errMsg, ok := m.Body.(string)
+	if !ok {
+		return errors.New(fmt.Sprintf("expected error body to be string, got %s", reflect.TypeOf(m.Body)))
+	}
+	return errors.New(errMsg)
+}
+
+func (m *Message) IsTransaction() bool {
+	return m.Header.HasFlag(FTransaction)
+}
+
+func (m *Message) IsProcedure() bool {
+	return m.Header.HasFlag(FProcedure)
 }
 
 type TMessage[T any] struct {

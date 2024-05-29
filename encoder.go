@@ -101,14 +101,7 @@ func (e *Encoder) EncodeHeader(h *Header, typeID TypeID, length int) ([]byte, er
 	if err := binary.Write(buf, binary.BigEndian, uint16(h.Type)); err != nil {
 		return nil, err
 	}
-	hasTransactionID := false
-	for _, b := range h.TransactionID {
-		if b != 0 {
-			hasTransactionID = true
-			break
-		}
-	}
-	if hasTransactionID {
+	if h.HasTransactionID() {
 		h.SetFlag(FTransaction)
 	}
 	if h.HasFlag(FTransaction) {

@@ -73,6 +73,7 @@ func init() {
 ```
 
 ## Protocol
+![img.png](_img/img.png)
 > ### Header (6 <> 24 bytes)
 > - version: 1 byte - the version of the protocol
 > - flags: 1 byte - flags that can be set to enable extra features
