@@ -154,7 +154,8 @@ func (d *Decoder) decodeValue(v reflect.Value, t reflect.Type, k reflect.Kind, l
 		if err != nil {
 			return err
 		}
-		if t != tUint {
+		if t !=
+			tUint {
 			v.Set(reflect.ValueOf(val).Convert(t))
 			return nil
 		}
