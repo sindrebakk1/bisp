@@ -84,3 +84,8 @@ type Message struct {
 	Header Header
 	Body   interface{}
 }
+
+type TMessage[T any] struct {
+	Header Header
+	Body   T
+}
