@@ -1,19 +1,19 @@
 # __Bi__*(nary)*__S__*(erialization)*__P__*(rotocol)*
 
-__BiSP__ is a binary serialization protocol that is designed to be simple, fast, and efficient. It is designed to be used
-in situations where JSON is too slow, and Protobuf is too complex. The protocol itself is language agnostic, but the go
-implementation relies on reflection to encode and decode arbitrary data. Implementations in other languages will need to use
-their own reflection libraries to achieve the same functionality, and for interop between language care has to be taken
-so corresponding types and IDs are synced between the sender and receiver.
+
+**BiSP** is a binary serialization protocol designed to be simple, fast, and efficient, ideal for scenarios where
+JSON is too slow and Protobuf is too complex. Although language agnostic, the Go implementation uses reflection for
+encoding and decoding data. Implementations in other languages must use their reflection libraries to match this
+functionality. For interoperability, corresponding types and IDs must be synchronized between sender and receiver.
 
 ## How it works
-The protocol uses a header to contain information about the type and length of the payload, as well as flags that can be
-set to enable extra features, (like compression, transactionID etc.) The payload is then serialized using the 16 bit type ID.
-For this to work, the types that are to be serialized have to be registered with the bisp package. Primitive types are
-automatically registered, but structs, arrays, and maps, as well as any type aliases, have to be registered manually.
-Registering types should be done during the init phase of the program, and has to be done in the same order on the server
-and client. The library does expose a method to sync the type IDs from an external source, but receiving the
-type registry map from the server has to be implemented manually.
+
+The protocol uses a header to store information about the type and length of the payload, along with flags for extra
+features like compression and transaction IDs. The payload is serialized using a 16-bit type ID. Types to be serialized
+must be registered with the `bisp` package. Primitive types are registered automatically, but structs, arrays, maps, and
+type aliases must be registered manually, ideally during the program's initialization phase and in the same order on
+both server and client. While the library provides a method to sync type IDs from an external source, manually
+implementing the reception of the type registry map from the server is required.
 
 ## Example
 
