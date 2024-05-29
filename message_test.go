@@ -438,6 +438,31 @@ func TestEncodeDecodeMessage_32bLengths(t *testing.T) {
 	testEncodeDecodeMessages(t, tcs)
 }
 
+func TestEncodeDecodeMessage_TypedDecode(t *testing.T) {
+	msg := bisp.Message{
+		Body: TestStruct{
+			A: 1,
+			B: "a",
+			C: true,
+		},
+	}
+	client, server := net.Pipe()
+	// Write to server
+	go func() {
+		encoder := bisp.NewEncoder(server)
+		err := encoder.Encode(&msg)
+		assert.NoError(t, err)
+		server.Close()
+	}()
+
+	// Read from client
+	decoder := bisp.NewDecoder(client)
+	res, err := bisp.TDecode[TestStruct](decoder)
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, msg.Body, res.Body)
+}
+
 func testEncodeDecodeMessages(t *testing.T, tcs []testCase) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {

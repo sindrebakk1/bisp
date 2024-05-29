@@ -29,7 +29,7 @@ func TestEncodeHeader(t *testing.T) {
 	bytes, err := encoder.EncodeHeader(&header, 1, 0)
 	assert.NoError(t, err)
 
-	expected := encodeTestHeader(&header, false)
+	expected := encodeTestHeader(&header, false, true)
 	assert.Equal(t, expected, bytes)
 	server.Close()
 }
@@ -149,7 +149,7 @@ func TestEncodeMessage_String(t *testing.T) {
 		assert.NoError(t, err)
 		server.Close()
 	}()
-	expected := encodeTestHeader(&message.Header, false)
+	expected := encodeTestHeader(&message.Header, false, true)
 	var b []byte
 	b, err = encodeTestValue("Hello", false)
 	if err != nil {
@@ -186,7 +186,7 @@ func TestEncodeMessage_32bLengths(t *testing.T) {
 		assert.NoError(t, err)
 		server.Close()
 	}()
-	expected := encodeTestHeader(&msg.Header, true)
+	expected := encodeTestHeader(&msg.Header, true, true)
 	bytes := make([]byte, len(body)+4+len(expected))
 	_, err = client.Read(bytes)
 	assert.NoError(t, err)

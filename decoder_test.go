@@ -26,7 +26,7 @@ func TestDecodeHeader(t *testing.T) {
 	}
 
 	go func() {
-		encodedHeader := encodeTestHeader(header, false)
+		encodedHeader := encodeTestHeader(header, false, true)
 		_, err := server.Write(encodedHeader)
 		assert.Nil(t, err)
 		server.Close()
@@ -140,7 +140,7 @@ func TestDecodeMessage_String(t *testing.T) {
 	assert.Nil(t, err)
 	testMsg.Header.Type = typeID
 	testMsg.Header.Length = bisp.Length(len(bodyBytes))
-	headerBytes := encodeTestHeader(&testMsg.Header, false)
+	headerBytes := encodeTestHeader(&testMsg.Header, false, true)
 	msgBytes := append(headerBytes, bodyBytes...)
 
 	client, server := net.Pipe()
@@ -179,7 +179,7 @@ func TestDecodeMessage_32bLengths(t *testing.T) {
 	}
 	bodyBytes, err := encodeTestValue(body, true)
 	assert.Nil(t, err)
-	headerBytes := encodeTestHeader(&testMsg.Header, true)
+	headerBytes := encodeTestHeader(&testMsg.Header, true, true)
 	msgBytes := append(headerBytes, bodyBytes...)
 
 	client, server := net.Pipe()

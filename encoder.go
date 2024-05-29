@@ -54,7 +54,7 @@ func (e *Encoder) Encode(m *Message) error {
 	return err
 }
 
-func (e *Encoder) EncodeProcedure(p struct{}, kind ProcedureKind) error {
+func (e *Encoder) EncodeProcedure(p any, kind ProcedureKind) error {
 	e.buf.Reset()
 	var (
 		err           error

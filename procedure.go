@@ -32,14 +32,15 @@ type Procedure[T any] struct {
 	TransactionID TransactionID
 }
 
-func RegisterProcedure(p struct{}) TypeID {
+func RegisterProcedure[P any]() TypeID {
+	var p P
 	t := reflect.TypeOf(p)
-	name := t.Name()
 	if t.Kind() != reflect.Struct {
 		panic("procedure must be a struct")
 	}
-	if _, ok := pTypeRegistry[t]; ok {
-		return pTypeRegistry[t]
+	name := t.Name()
+	if _, ok := pNameRegistry[name]; ok {
+		return pNameRegistry[name]
 	}
 	if _, ok := t.FieldByName("Procedure"); !ok {
 		panic("procedure must have an embedded Procedure")
@@ -75,7 +76,7 @@ func registerParamTypes(t reflect.Type) {
 	}
 }
 
-func GetProcedureID(p struct{}) (TypeID, error) {
+func GetProcedureID(p any) (TypeID, error) {
 	ID, ok := pTypeRegistry[reflect.TypeOf(p)]
 	if !ok {
 		return 0, errors.New(fmt.Sprintf("procedure not registered: %s", reflect.TypeOf(p)))

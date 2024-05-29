@@ -13,12 +13,14 @@ type testCase struct {
 	expected any
 }
 
-func encodeTestHeader(header *bisp.Header, l32 bool) []byte {
+func encodeTestHeader(header *bisp.Header, l32 bool, tID bool) []byte {
 	buf := new(bytes.Buffer)
 	buf.WriteByte(byte(header.Version))
 	buf.WriteByte(byte(header.Flags))
 	_ = binary.Write(buf, binary.BigEndian, header.Type)
-	_ = binary.Write(buf, binary.BigEndian, header.TransactionID)
+	if tID {
+		_ = binary.Write(buf, binary.BigEndian, header.TransactionID)
+	}
 	if l32 {
 		_ = binary.Write(buf, binary.BigEndian, uint32(header.Length))
 		return buf.Bytes()
@@ -214,6 +216,7 @@ func init() {
 	bisp.RegisterType(map[string]TestEnum{})
 	bisp.RegisterType(map[string][]int{})
 	bisp.RegisterType(testStruct{})
+	bisp.RegisterType(TestStruct{})
 	bisp.RegisterType(testStructSliceField{})
 	bisp.RegisterType(testStructStructField{})
 	bisp.RegisterType(testStructStructFieldSliceField{})
