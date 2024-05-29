@@ -7,10 +7,10 @@ import (
 )
 
 var (
-	nameRegistry           = make(map[string]TypeID, 32)
-	typeRegistry           = make(map[reflect.Type]TypeID, 32)
-	reverseRegistry        = make(map[TypeID]reflect.Type, 32)
-	nextID          TypeID = 0
+	nameRegistry       = make(map[string]ID, 32)
+	typeRegistry       = make(map[reflect.Type]ID, 32)
+	reverseRegistry    = make(map[ID]reflect.Type, 32)
+	nextID          ID = 0
 )
 
 var (
@@ -30,7 +30,7 @@ var (
 	tString  = reflect.TypeOf("")
 )
 
-func RegisterType(value interface{}) TypeID {
+func RegisterType(value interface{}) ID {
 	t := reflect.TypeOf(value)
 	var name string
 	if t == nil {
@@ -52,7 +52,7 @@ func RegisterType(value interface{}) TypeID {
 	return nameRegistry[name]
 }
 
-func GetIDFromType(value interface{}) (TypeID, error) {
+func GetIDFromType(value interface{}) (ID, error) {
 	t := reflect.TypeOf(value)
 	var name string
 	if t == nil {
@@ -67,7 +67,7 @@ func GetIDFromType(value interface{}) (TypeID, error) {
 	return ID, nil
 }
 
-func GetTypeFromID(id TypeID) (reflect.Type, error) {
+func GetTypeFromID(id ID) (reflect.Type, error) {
 	typ, exists := reverseRegistry[id]
 	if !exists {
 		return nil, errors.New("type not registered")
@@ -75,7 +75,7 @@ func GetTypeFromID(id TypeID) (reflect.Type, error) {
 	return typ, nil
 }
 
-func SyncTypeRegistry(other map[reflect.Type]TypeID) []error {
+func SyncTypeRegistry(other map[reflect.Type]ID) []error {
 	errs := make([]error, 0)
 	for typ, id := range other {
 		if _, ok := typeRegistry[typ]; !ok {
@@ -93,7 +93,7 @@ func SyncTypeRegistry(other map[reflect.Type]TypeID) []error {
 	return errs
 }
 
-func GetTypeRegistry() map[reflect.Type]TypeID {
+func GetTypeRegistry() map[reflect.Type]ID {
 	return typeRegistry
 }
 

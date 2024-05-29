@@ -6,14 +6,14 @@ import (
 	"reflect"
 )
 
-type ProcedureKind bool
+type PKind uint8
 
 const (
-	Call     ProcedureKind = false
-	Response ProcedureKind = true
+	Call PKind = iota
+	Response
 )
 
-func (p ProcedureKind) String() string {
+func (p PKind) String() string {
 	if p == Call {
 		return "Call"
 	}
@@ -21,10 +21,10 @@ func (p ProcedureKind) String() string {
 }
 
 var (
-	pNameRegistry           = make(map[string]TypeID, 16)
-	pTypeRegistry           = make(map[reflect.Type]TypeID, 16)
-	pReverseRegistry        = make(map[TypeID]reflect.Type, 16)
-	nextPID          TypeID = 1
+	pNameRegistry       = make(map[string]ID, 16)
+	pTypeRegistry       = make(map[reflect.Type]ID, 16)
+	pReverseRegistry    = make(map[ID]reflect.Type, 16)
+	nextPID          ID = 1
 )
 
 type Procedure[T any] struct {
@@ -32,7 +32,7 @@ type Procedure[T any] struct {
 	TransactionID TransactionID
 }
 
-func RegisterProcedure[P any]() TypeID {
+func RegisterProcedure[P any]() ID {
 	var p P
 	t := reflect.TypeOf(p)
 	if t.Kind() != reflect.Struct {
@@ -76,7 +76,7 @@ func registerParamTypes(t reflect.Type) {
 	}
 }
 
-func GetProcedureID(p any) (TypeID, error) {
+func GetProcedureID(p any) (ID, error) {
 	ID, ok := pTypeRegistry[reflect.TypeOf(p)]
 	if !ok {
 		return 0, errors.New(fmt.Sprintf("procedure not registered: %s", reflect.TypeOf(p)))
@@ -84,7 +84,7 @@ func GetProcedureID(p any) (TypeID, error) {
 	return ID, nil
 }
 
-func GetProcedureFromID(id TypeID) (reflect.Type, error) {
+func GetProcedureFromID(id ID) (reflect.Type, error) {
 	typ, exists := pReverseRegistry[id]
 	if !exists {
 		return nil, errors.New(fmt.Sprintf("procedure with id %d not registered", id))

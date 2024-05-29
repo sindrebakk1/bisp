@@ -237,8 +237,8 @@ func TestEncodeDecodeMessage_Array(t *testing.T) {
 
 func TestEncodeDecodeMessage_Struct(t *testing.T) {
 	var (
-		testStructEmbeddedPrivateStruct3ID bisp.TypeID
-		testStructPrivateFields3ID         bisp.TypeID
+		testStructEmbeddedPrivateStruct3ID bisp.ID
+		testStructPrivateFields3ID         bisp.ID
 		err                                error
 	)
 	testStructEmbeddedPrivateStruct3ID, err = bisp.GetIDFromType(testStructEmbeddedPrivateStruct{})

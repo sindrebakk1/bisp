@@ -47,7 +47,7 @@ const MaxTcpMessageBodySize = 1<<16 - 1
 
 const Max32bMessageBodySize = 1<<32 - 1
 
-type TypeID uint16
+type ID uint16
 
 type TransactionID [TransactionIDSize]byte
 
@@ -56,7 +56,7 @@ type Length uint32
 type Header struct {
 	Version       Version
 	Flags         Flag
-	Type          TypeID
+	Type          ID
 	TransactionID TransactionID
 	Length        Length
 }

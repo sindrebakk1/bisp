@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"unsafe"
@@ -22,31 +23,77 @@ func NewDecoder(r io.Reader) *Decoder {
 }
 
 func (d *Decoder) Decode(msg *Message) error {
+	d.buf.Reset()
 	header, err := d.DecodeHeader()
 	if err != nil {
 		return err
 	}
 	var body interface{}
-	body, err = d.DecodeBody(header.Type, uint32(header.Length), header.HasFlag(F32b))
-	if err != nil {
-		return err
+	if header.HasFlag(FProcedure) {
+		body, _, err = d.DecodeProcedure(header.Type, uint32(header.Length))
+		if err != nil {
+			return err
+		}
+	} else {
+		body, err = d.DecodeBody(header.Type, uint32(header.Length), header.HasFlag(F32b))
+		if err != nil {
+			return err
+		}
 	}
-	d.buf.Reset()
 	msg.Header = *header
 	msg.Body = body
 	return nil
 }
 
 func TDecode[T any](d *Decoder) (*TMessage[T], error) {
-	var msg Message
+	var (
+		msg  Message
+		body T
+		ok   bool
+	)
 	err := d.Decode(&msg)
 	if err != nil {
 		return nil, err
 	}
+	if body, ok = msg.Body.(T); !ok {
+		return nil, errors.New(fmt.Sprintf("expected body to be of type %s, got %s", reflect.TypeOf(body), reflect.TypeOf(msg.Body)))
+	}
 	return &TMessage[T]{
 		Header: msg.Header,
-		Body:   msg.Body.(T),
+		Body:   body,
 	}, nil
+}
+
+func TDecodeProcedure[P any](d *Decoder) (*TMessage[P], PKind, error) {
+	var (
+		procedureID ID
+	)
+	header, err := d.DecodeHeader()
+	if err != nil {
+		return nil, 0, err
+	}
+	if !header.HasFlag(FProcedure) {
+		return nil, 0, errors.New("expected procedure message")
+	}
+	var p P
+	procedureID, err = GetProcedureID(p)
+	if err != nil {
+		return nil, 0, err
+	}
+	if header.Type != procedureID {
+		return nil, 0, errors.New(fmt.Sprintf("expected procedure type %d, got %d", procedureID, header.Type))
+	}
+	var pBody any
+	var pKind PKind
+	pBody, pKind, err = d.DecodeProcedure(procedureID, uint32(header.Length))
+	if err != nil {
+		return nil, 0, err
+	}
+	p = pBody.(P)
+	return &TMessage[P]{
+		Header: *header,
+		Body:   p,
+	}, pKind, nil
 }
 
 func (d *Decoder) DecodeHeader() (*Header, error) {
@@ -108,20 +155,19 @@ func (d *Decoder) DecodeHeader() (*Header, error) {
 
 	header.Version = Version(version)
 	header.Flags = Flag(flags)
-	header.Type = TypeID(typeID)
+	header.Type = ID(typeID)
 	header.TransactionID = transID
 	header.Length = Length(length)
 
 	return &header, nil
 }
 
-func (d *Decoder) DecodeBody(typeID TypeID, l uint32, l32 bool) (interface{}, error) {
+func (d *Decoder) DecodeBody(typeID ID, l uint32, l32 bool) (any, error) {
 	d.buf.Reset()
 	d.buf.Grow(int(l))
 	n, err := io.CopyN(d.buf, d.reader, int64(l))
 	if err != nil {
 		return nil, err
-
 	}
 	if n != int64(l) {
 		return nil, errors.New("unexpected end of body")
@@ -143,6 +189,74 @@ func (d *Decoder) DecodeBody(typeID TypeID, l uint32, l32 bool) (interface{}, er
 		return nil, err
 	}
 	return val.Interface(), nil
+}
+
+func (d *Decoder) DecodeProcedure(procedureID ID, l uint32) (any, PKind, error) {
+	d.buf.Reset()
+	d.buf.Grow(int(l))
+	n, err := io.CopyN(d.buf, d.reader, int64(l))
+	if err != nil {
+		return nil, 0, err
+	}
+	if n != int64(l) {
+		return nil, 0, errors.New("unexpected end of procedure")
+	}
+	var typ reflect.Type
+	typ, err = GetProcedureFromID(procedureID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if typ == nil {
+		return nil, 0, nil
+	}
+	val := reflect.New(typ).Elem()
+	kind := val.Kind()
+	if kind == reflect.Ptr {
+		val = val.Elem()
+	}
+	var pKind PKind
+	if pKind, err = d.decodeProcedure(val, procedureID); err != nil {
+		return nil, 0, err
+	}
+	return val.Interface(), pKind, nil
+}
+
+func (d *Decoder) decodeProcedure(p reflect.Value, procedureID ID) (PKind, error) {
+	typ, ok := pReverseRegistry[procedureID]
+	if !ok {
+		return 0, errors.New(fmt.Sprintf("procedure %s not registered", p.Type().Name()))
+	}
+	t := p.Type()
+	if typ != t {
+		return 0, errors.New(fmt.Sprintf("procedure type mismatch: %s != %s", typ, t))
+	}
+	k, err := d.decodeUint8(p, false)
+	if err != nil {
+		return 0, err
+	}
+	kind := PKind(k)
+	if kind == Response {
+		field := p.FieldByName("Out")
+		if !field.IsValid() {
+			return 0, errors.New("procedure must have a valid Out field")
+		}
+		err = d.decodeValue(field, field.Type(), field.Kind(), false)
+		if err != nil {
+			return 0, err
+		}
+	}
+	for i := range t.NumField() {
+		tField := t.Field(i)
+		if tField.Name == "Procedure" || tField.Name == "TransactionID" || tField.Name == "Out" {
+			continue
+		}
+		field := reflect.New(tField.Type).Elem()
+		err = d.decodeValue(field, field.Type(), field.Kind(), false)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return kind, nil
 }
 
 func (d *Decoder) decodeValue(v reflect.Value, t reflect.Type, k reflect.Kind, l32 bool) error {
@@ -494,7 +608,6 @@ func (d *Decoder) decodeStruct(v reflect.Value, l32 bool) (interface{}, error) {
 			if err != nil {
 				return nil, err
 			}
-			field.Set(field)
 		}
 	}
 

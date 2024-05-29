@@ -219,7 +219,6 @@ func testEncodeBody(t *testing.T, testCases []testCase) {
 			bytes := encoder.Bytes()
 			assert.Equal(t, expectedBytes, bytes)
 
-			encoder.Reset()
 			server.Close()
 		})
 	}

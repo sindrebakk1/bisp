@@ -173,7 +173,7 @@ func TestEncodeProcedure_TransactionID(t *testing.T) {
 	})
 }
 
-func encodeProcedure(t *testing.T, p any, kind bisp.ProcedureKind) []byte {
+func encodeProcedure(t *testing.T, p any, kind bisp.PKind) []byte {
 	buf := new(bytes.Buffer)
 	enc := bisp.NewEncoder(buf)
 	err := enc.EncodeProcedure(p, kind)
@@ -183,7 +183,7 @@ func encodeProcedure(t *testing.T, p any, kind bisp.ProcedureKind) []byte {
 	return buf.Bytes()
 }
 
-func testEncodeProcedures(t *testing.T, tcs []testCase, kind bisp.ProcedureKind) {
+func testEncodeProcedures(t *testing.T, tcs []testCase, kind bisp.PKind) {
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			expected := getExpectedProcedureBytes(t, tc.value, kind, false)
@@ -193,7 +193,7 @@ func testEncodeProcedures(t *testing.T, tcs []testCase, kind bisp.ProcedureKind)
 	}
 }
 
-func getExpectedProcedureBytes(t *testing.T, p any, kind bisp.ProcedureKind, tID bool) []byte {
+func getExpectedProcedureBytes(t *testing.T, p any, kind bisp.PKind, tID bool) []byte {
 	pID, err := bisp.GetProcedureID(p)
 	if err != nil {
 		t.Fatal(err)
@@ -201,6 +201,7 @@ func getExpectedProcedureBytes(t *testing.T, p any, kind bisp.ProcedureKind, tID
 	pVal := reflect.ValueOf(p)
 	pType := pVal.Type()
 	buf := new(bytes.Buffer)
+	buf.WriteByte(byte(kind))
 	var expectedBytes []byte
 	if kind == bisp.Response {
 		out := pVal.FieldByName("Out")

@@ -213,7 +213,7 @@ func testDecodeBody(t *testing.T, testCases []testCase) {
 
 			decoder := bisp.NewDecoder(client)
 
-			var typeID bisp.TypeID
+			var typeID bisp.ID
 			typeID, err = bisp.GetIDFromType(tc.value)
 			assert.Nil(t, err)
 
