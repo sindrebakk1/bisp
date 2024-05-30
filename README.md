@@ -102,17 +102,21 @@ TODO
 - [ ] Features:
   - [X] Transaction ID
   - [X] 32 bit lengths
-  - [ ] Procedure calls
+  - [X] Procedure calls
     - [X] Encode
-    - [ ] Decode
+    - [X] Decode
   - [ ] Error handling - only relevant for procedures?
   - [ ] Compression
-  - [ ] Encryption
   - [ ] Type syncing
+  - [ ] Encryption
 - [ ] Tests:
-  - [x] Arrays
+  - [x] Encoder
+  - [x] Decoder
+  - [x] Message
+  - [x] Procedure calls
+  - [x] Procedure responses
+  - [X] Type aliases (enums, etc.)
   - [ ] Error handling
-  - [ ] Type aliases
   - [ ] Two-dimensional slices and arrays
 - [ ] Benchmarks
   - [X] Encoding
@@ -121,14 +125,15 @@ TODO
   - [X] Large messages
     - [X] 16b length
     - [X] 32b length
+  - [ ] Procedures
   - [ ] Compression
 - [ ] Optimizations
-  - [ ] Use a pool for the encoder and decoder?
-  - [ ] Use a pool for the huffman encoder and decoder?
-  - [ ] Use unsafe pointers to avoid reflection where reasonable
   - [X] Large string, slice and array optimizations
   - [ ] Large struct optimizations
   - [ ] Large map optimizations
+  - [ ] Use unsafe pointers to avoid reflection where reasonable
+  - [ ] Use a pool for the huffman encoder and decoder?
+  - [ ] Use a pool for the encoder and decoder?
 - [ ] Documentation
   - [ ] Examples
     - [X] Simple

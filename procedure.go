@@ -9,15 +9,13 @@ import (
 type PKind uint8
 
 const (
-	Call PKind = iota
+	Unknown PKind = iota
+	Call
 	Response
 )
 
 func (p PKind) String() string {
-	if p == Call {
-		return "Call"
-	}
-	return "Response"
+	return []string{"Unknown", "Call", "Response"}[p]
 }
 
 var (
@@ -28,8 +26,8 @@ var (
 )
 
 type Procedure[T any] struct {
-	Out           T
-	TransactionID TransactionID
+	Kind PKind
+	Out  T
 }
 
 func RegisterProcedure[P any]() ID {

@@ -30,7 +30,7 @@ func (d *Decoder) Decode(msg *Message) error {
 	}
 	var body interface{}
 	if header.HasFlag(FProcedure) {
-		body, _, err = d.DecodeProcedure(header.Type, uint32(header.Length))
+		body, err = d.DecodeProcedure(header.Type, uint32(header.Length))
 		if err != nil {
 			return err
 		}
@@ -64,36 +64,35 @@ func TDecode[T any](d *Decoder) (*TMessage[T], error) {
 	}, nil
 }
 
-func TDecodeProcedure[P any](d *Decoder) (*TMessage[P], PKind, error) {
+func TDecodeProcedure[P any](d *Decoder) (*TMessage[P], error) {
 	var (
 		procedureID ID
 	)
 	header, err := d.DecodeHeader()
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	if !header.HasFlag(FProcedure) {
-		return nil, 0, errors.New("expected procedure message")
+		return nil, errors.New("expected procedure message")
 	}
 	var p P
 	procedureID, err = GetProcedureID(p)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	if header.Type != procedureID {
-		return nil, 0, errors.New(fmt.Sprintf("expected procedure type %d, got %d", procedureID, header.Type))
+		return nil, errors.New(fmt.Sprintf("expected procedure type %d, got %d", procedureID, header.Type))
 	}
 	var pBody any
-	var pKind PKind
-	pBody, pKind, err = d.DecodeProcedure(procedureID, uint32(header.Length))
+	pBody, err = d.DecodeProcedure(procedureID, uint32(header.Length))
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	p = pBody.(P)
 	return &TMessage[P]{
 		Header: *header,
 		Body:   p,
-	}, pKind, nil
+	}, nil
 }
 
 func (d *Decoder) DecodeHeader() (*Header, error) {
@@ -191,72 +190,74 @@ func (d *Decoder) DecodeBody(typeID ID, l uint32, l32 bool) (any, error) {
 	return val.Interface(), nil
 }
 
-func (d *Decoder) DecodeProcedure(procedureID ID, l uint32) (any, PKind, error) {
+func (d *Decoder) DecodeProcedure(procedureID ID, l uint32) (any, error) {
 	d.buf.Reset()
 	d.buf.Grow(int(l))
 	n, err := io.CopyN(d.buf, d.reader, int64(l))
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	if n != int64(l) {
-		return nil, 0, errors.New("unexpected end of procedure")
+		return nil, errors.New("unexpected end of procedure")
 	}
 	var typ reflect.Type
 	typ, err = GetProcedureFromID(procedureID)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	if typ == nil {
-		return nil, 0, nil
+		return nil, nil
 	}
 	val := reflect.New(typ).Elem()
 	kind := val.Kind()
 	if kind == reflect.Ptr {
 		val = val.Elem()
 	}
-	var pKind PKind
-	if pKind, err = d.decodeProcedure(val, procedureID); err != nil {
-		return nil, 0, err
+	if err = d.decodeProcedure(val, procedureID); err != nil {
+		return nil, err
 	}
-	return val.Interface(), pKind, nil
+	return val.Interface(), nil
 }
 
-func (d *Decoder) decodeProcedure(p reflect.Value, procedureID ID) (PKind, error) {
+func (d *Decoder) decodeProcedure(p reflect.Value, procedureID ID) error {
 	typ, ok := pReverseRegistry[procedureID]
 	if !ok {
-		return 0, errors.New(fmt.Sprintf("procedure %s not registered", p.Type().Name()))
+		return errors.New(fmt.Sprintf("procedure %s not registered", p.Type().Name()))
 	}
 	t := p.Type()
 	if typ != t {
-		return 0, errors.New(fmt.Sprintf("procedure type mismatch: %s != %s", typ, t))
+		return errors.New(fmt.Sprintf("procedure type mismatch: %s != %s", typ, t))
 	}
-	k, err := d.decodeUint8(p, false)
+	k, err := d.decodeUint8(reflect.Value{}, false)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	kind := PKind(k)
+	p.FieldByName("Kind").Set(reflect.ValueOf(kind))
 	if kind == Response {
 		field := p.FieldByName("Out")
 		if !field.IsValid() {
-			return 0, errors.New("procedure must have a valid Out field")
+			return errors.New("procedure must have a valid Out field")
 		}
 		err = d.decodeValue(field, field.Type(), field.Kind(), false)
 		if err != nil {
-			return 0, err
+			return err
+		}
+	} else {
+		for i := range t.NumField() {
+			tField := t.Field(i)
+			if tField.Name == "Procedure" {
+				continue
+			}
+			field := p.FieldByName(tField.Name)
+			err = d.decodeValue(field, field.Type(), field.Kind(), false)
+			if err != nil {
+				return err
+			}
 		}
 	}
-	for i := range t.NumField() {
-		tField := t.Field(i)
-		if tField.Name == "Procedure" || tField.Name == "TransactionID" || tField.Name == "Out" {
-			continue
-		}
-		field := reflect.New(tField.Type).Elem()
-		err = d.decodeValue(field, field.Type(), field.Kind(), false)
-		if err != nil {
-			return 0, err
-		}
-	}
-	return kind, nil
+	p.Set(p)
+	return nil
 }
 
 func (d *Decoder) decodeValue(v reflect.Value, t reflect.Type, k reflect.Kind, l32 bool) error {

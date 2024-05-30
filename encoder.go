@@ -54,6 +54,52 @@ func (e *Encoder) Encode(m *Message) error {
 	return err
 }
 
+type EncodeProcedureOpts struct {
+	TransactionID TransactionID
+}
+
+func (e *Encoder) EncodeProcedure(p any, kind PKind, opts *EncodeProcedureOpts) error {
+	if kind == Unknown {
+		return errors.New(fmt.Sprintf("kind %s, set either %s or %s", Unknown, Call, Response))
+	}
+	e.buf.Reset()
+	var (
+		err         error
+		procedureID ID
+		length      int
+		msgBytes    []byte
+		header      Header
+	)
+	procedureID, err = GetProcedureID(p)
+	if err != nil {
+		return err
+	}
+	header.SetFlag(FProcedure)
+
+	v := reflect.ValueOf(p)
+	if err = e.encodeProcedure(v, procedureID, kind); err != nil {
+		return err
+	}
+	if opts != nil {
+		header.TransactionID = opts.TransactionID
+	}
+	length = e.buf.Len()
+	if length > MaxTcpMessageBodySize {
+		return errors.New(fmt.Sprintf("message body too large. length: %d max: %d", length, MaxTcpMessageBodySize))
+	}
+	msgBytes, err = e.EncodeHeader(&header, procedureID, length)
+	if err != nil {
+		return err
+	}
+	msgBytes = append(msgBytes, e.buf.Bytes()...)
+	_, err = e.writer.Write(msgBytes)
+	return err
+}
+
+func (e *Encoder) Bytes() []byte {
+	return e.buf.Bytes()
+}
+
 func (e *Encoder) EncodeHeader(h *Header, typeID ID, length int) ([]byte, error) {
 	h.Version = CurrentVersion
 	h.Type = typeID
@@ -107,76 +153,32 @@ func (e *Encoder) EncodeBody(v any, l32 bool) error {
 	return nil
 }
 
-func (e *Encoder) EncodeProcedure(p any, kind PKind) error {
-	e.buf.Reset()
-	var (
-		err           error
-		procedureID   ID
-		transactionID TransactionID
-		length        int
-		msgBytes      []byte
-		header        Header
-	)
-	procedureID, err = GetProcedureID(p)
-	if err != nil {
-		return err
-	}
-	header.SetFlag(FProcedure)
-
-	v := reflect.ValueOf(p)
-	if transactionID, err = e.encodeProcedure(v, procedureID, kind); err != nil {
-		return err
-	}
-	header.TransactionID = transactionID
-	length = e.buf.Len()
-	if length > MaxTcpMessageBodySize {
-		return errors.New(fmt.Sprintf("message body too large. length: %d max: %d", length, MaxTcpMessageBodySize))
-	}
-	msgBytes, err = e.EncodeHeader(&header, procedureID, length)
-	if err != nil {
-		return err
-	}
-	msgBytes = append(msgBytes, e.buf.Bytes()...)
-	_, err = e.writer.Write(msgBytes)
-	return err
-}
-
-func (e *Encoder) Bytes() []byte {
-	return e.buf.Bytes()
-}
-
-func (e *Encoder) encodeProcedure(p reflect.Value, procedureID ID, kind PKind) (TransactionID, error) {
-	var transactionID TransactionID
+func (e *Encoder) encodeProcedure(p reflect.Value, procedureID ID, kind PKind) error {
 	t, ok := pReverseRegistry[procedureID]
 	if !ok {
-		return transactionID, errors.New(fmt.Sprintf("procedure %s not registered", p.Type().Name()))
-	}
-
-	transactionField := p.FieldByName("TransactionID")
-	if transactionField.IsValid() && transactionField.Type() == reflect.TypeOf(transactionID) {
-		transactionID = transactionField.Interface().(TransactionID)
+		return errors.New(fmt.Sprintf("procedure %s not registered", p.Type().Name()))
 	}
 	if err := e.encodeUint8(reflect.ValueOf(uint8(kind)), false); err != nil {
-		return transactionID, err
+		return err
 	}
 	if kind == Response {
 		field := p.FieldByName("Out")
 		if err := e.encodeValue(field, field.Kind(), false); err != nil {
-			return transactionID, err
+			return err
 		}
-		return transactionID, nil
+		return nil
 	}
 	for i := range t.NumField() {
 		tField := t.Field(i)
-		if tField.Name == "Procedure" || tField.Name == "TransactionID" || tField.Name == "Out" {
+		if tField.Name == "Procedure" {
 			continue
 		}
 		field := p.FieldByName(tField.Name)
 		if err := e.encodeValue(field, field.Kind(), false); err != nil {
-			return transactionID, err
+			return err
 		}
 	}
-	return transactionID, nil
+	return nil
 }
 
 func (e *Encoder) encodeValue(val reflect.Value, kind reflect.Kind, l32 bool) error {

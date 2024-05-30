@@ -7,7 +7,6 @@ import (
 )
 
 var (
-	nameRegistry       = make(map[string]ID, 32)
 	typeRegistry       = make(map[reflect.Type]ID, 32)
 	reverseRegistry    = make(map[ID]reflect.Type, 32)
 	nextID          ID = 0
@@ -32,14 +31,7 @@ var (
 
 func RegisterType(value interface{}) ID {
 	t := reflect.TypeOf(value)
-	var name string
-	if t == nil {
-		name = "nil"
-	} else {
-		name = t.String()
-	}
-	if _, ok := nameRegistry[name]; !ok {
-		nameRegistry[name] = nextID
+	if _, ok := typeRegistry[t]; !ok {
 		typeRegistry[t] = nextID
 		reverseRegistry[nextID] = t
 
@@ -49,22 +41,16 @@ func RegisterType(value interface{}) ID {
 			RegisterType(slice)
 		}
 	}
-	return nameRegistry[name]
+	return typeRegistry[t]
 }
 
 func GetIDFromType(value interface{}) (ID, error) {
 	t := reflect.TypeOf(value)
-	var name string
-	if t == nil {
-		name = "nil"
-	} else {
-		name = t.String()
-	}
-	ID, exists := nameRegistry[name]
+	id, exists := typeRegistry[t]
 	if !exists {
 		return 0, errors.New("type not registered")
 	}
-	return ID, nil
+	return id, nil
 }
 
 func GetTypeFromID(id ID) (reflect.Type, error) {
