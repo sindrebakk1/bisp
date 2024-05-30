@@ -7,9 +7,9 @@ import (
 )
 
 var (
-	typeRegistry           = make(map[reflect.Type]TypeID, 32)
-	reverseRegistry        = make(map[TypeID]reflect.Type, 32)
-	nextID          TypeID = 0
+	typeRegistry       = make(map[reflect.Type]ID, 32)
+	reverseRegistry    = make(map[ID]reflect.Type, 32)
+	nextID          ID = 0
 )
 
 var (
@@ -29,30 +29,31 @@ var (
 	tString  = reflect.TypeOf("")
 )
 
-func RegisterType(value interface{}) TypeID {
+func RegisterType(value interface{}) ID {
 	t := reflect.TypeOf(value)
 	if _, ok := typeRegistry[t]; !ok {
 		typeRegistry[t] = nextID
 		reverseRegistry[nextID] = t
 
 		nextID++
-	}
-	if t != nil && t.Kind() != reflect.Slice && t.Kind() != reflect.Array && t.Kind() != reflect.Map {
-		slice := reflect.New(reflect.SliceOf(t)).Elem().Interface()
-		RegisterType(slice)
+		if t != nil && t.Kind() != reflect.Slice && t.Kind() != reflect.Array && t.Kind() != reflect.Map {
+			slice := reflect.New(reflect.SliceOf(t)).Elem().Interface()
+			RegisterType(slice)
+		}
 	}
 	return typeRegistry[t]
 }
 
-func GetIDFromType(value interface{}) (TypeID, error) {
-	ID, exists := typeRegistry[reflect.TypeOf(value)]
+func GetIDFromType(value interface{}) (ID, error) {
+	t := reflect.TypeOf(value)
+	id, exists := typeRegistry[t]
 	if !exists {
 		return 0, errors.New("type not registered")
 	}
-	return ID, nil
+	return id, nil
 }
 
-func GetTypeFromID(id TypeID) (reflect.Type, error) {
+func GetTypeFromID(id ID) (reflect.Type, error) {
 	typ, exists := reverseRegistry[id]
 	if !exists {
 		return nil, errors.New("type not registered")
@@ -60,7 +61,7 @@ func GetTypeFromID(id TypeID) (reflect.Type, error) {
 	return typ, nil
 }
 
-func SyncTypeRegistry(other map[reflect.Type]TypeID) []error {
+func SyncTypeRegistry(other map[reflect.Type]ID) []error {
 	errs := make([]error, 0)
 	for typ, id := range other {
 		if _, ok := typeRegistry[typ]; !ok {
@@ -78,7 +79,7 @@ func SyncTypeRegistry(other map[reflect.Type]TypeID) []error {
 	return errs
 }
 
-func GetTypeRegistry() map[reflect.Type]TypeID {
+func GetTypeRegistry() map[reflect.Type]ID {
 	return typeRegistry
 }
 

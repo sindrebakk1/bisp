@@ -13,24 +13,14 @@ type testCase struct {
 	expected any
 }
 
-type TestEnum uint8
-
-const (
-	TestEnum1 TestEnum = iota
-	TestEnum2
-	TestEnum3
-)
-
-func (t TestEnum) String() string {
-	return [...]string{"TestEnum1", "TestEnum2", "TestEnum3"}[t]
-}
-
-func encodeTestHeader(header *bisp.Header, l32 bool) []byte {
+func encodeTestHeader(header *bisp.Header, l32 bool, tID bool) []byte {
 	buf := new(bytes.Buffer)
 	buf.WriteByte(byte(header.Version))
 	buf.WriteByte(byte(header.Flags))
 	_ = binary.Write(buf, binary.BigEndian, header.Type)
-	_ = binary.Write(buf, binary.BigEndian, header.TransactionID)
+	if tID {
+		_ = binary.Write(buf, binary.BigEndian, header.TransactionID)
+	}
 	if l32 {
 		_ = binary.Write(buf, binary.BigEndian, uint32(header.Length))
 		return buf.Bytes()
@@ -151,6 +141,86 @@ func encodeLength(buf *bytes.Buffer, length int, l32 bool) error {
 	return nil
 }
 
+type TestEnum uint8
+
+const (
+	TestEnum1 TestEnum = iota
+	TestEnum2
+	TestEnum3
+)
+
+func (t TestEnum) String() string {
+	return [...]string{"TestEnum1", "TestEnum2", "TestEnum3"}[t]
+}
+
+type testStructEnum struct {
+	A TestEnum
+	B TestEnum
+	C []TestEnum
+}
+
+type testStruct struct {
+	A int
+	B string
+	C bool
+}
+
+type TestStruct struct {
+	A int
+	B string
+	C bool
+}
+
+type testStructSliceField struct {
+	Slice []int
+}
+
+type testStructStructField struct {
+	Struct testStruct
+	B      string
+}
+
+type testStructStructFieldSliceField struct {
+	Structs []testStruct
+}
+
+type testStructEmbeddedPrivateStruct struct {
+	testStruct
+	B string
+}
+
+type testStructEmbeddedStruct struct {
+	TestStruct
+	B string
+}
+
+type testStructPrivateFields struct {
+	a int
+	b string
+	c bool
+}
+
 func init() {
+	bisp.RegisterType([3]int{})
+	bisp.RegisterType([3]uint{})
+	bisp.RegisterType([3]float32{})
+	bisp.RegisterType([3]float64{})
+	bisp.RegisterType([3]string{})
+	bisp.RegisterType([3]bool{})
+	bisp.RegisterType([3]testStruct{})
 	bisp.RegisterType(TestEnum(0))
+	bisp.RegisterType(testStructEnum{})
+	bisp.RegisterType(map[int]string{})
+	bisp.RegisterType(map[TestEnum]string{})
+	bisp.RegisterType(map[string]int{})
+	bisp.RegisterType(map[string]TestEnum{})
+	bisp.RegisterType(map[string][]int{})
+	bisp.RegisterType(testStruct{})
+	bisp.RegisterType(TestStruct{})
+	bisp.RegisterType(testStructSliceField{})
+	bisp.RegisterType(testStructStructField{})
+	bisp.RegisterType(testStructStructFieldSliceField{})
+	bisp.RegisterType(testStructEmbeddedPrivateStruct{})
+	bisp.RegisterType(testStructEmbeddedStruct{})
+	bisp.RegisterType(testStructPrivateFields{})
 }

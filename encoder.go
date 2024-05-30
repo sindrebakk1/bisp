@@ -24,11 +24,15 @@ func NewEncoder(w io.Writer) *Encoder {
 func (e *Encoder) Encode(m *Message) error {
 	e.buf.Reset()
 	var (
-		err         error
-		typeID      TypeID
-		length      int
-		headerBytes []byte
+		err      error
+		typeID   ID
+		length   int
+		msgBytes []byte
 	)
+	typeID, err = GetIDFromType(m.Body)
+	if err != nil {
+		return err
+	}
 	l32 := m.Header.HasFlag(F32b)
 	err = e.EncodeBody(m.Body, l32)
 	if err != nil {
@@ -41,20 +45,62 @@ func (e *Encoder) Encode(m *Message) error {
 	if !l32 && length > MaxTcpMessageBodySize {
 		return errors.New(fmt.Sprintf("message body too large. length: %d max: %d", length, MaxTcpMessageBodySize))
 	}
-	typeID, err = GetIDFromType(m.Body)
+	msgBytes, err = e.EncodeHeader(&m.Header, typeID, length)
 	if err != nil {
 		return err
 	}
-	headerBytes, err = e.EncodeHeader(&m.Header, typeID, length)
-	if err != nil {
-		return err
-	}
-	headerBytes = append(headerBytes, e.buf.Bytes()...)
-	_, err = e.writer.Write(headerBytes)
+	msgBytes = append(msgBytes, e.buf.Bytes()...)
+	_, err = e.writer.Write(msgBytes)
 	return err
 }
 
-func (e *Encoder) EncodeHeader(h *Header, typeID TypeID, length int) ([]byte, error) {
+type EncodeProcedureOpts struct {
+	TransactionID TransactionID
+}
+
+func (e *Encoder) EncodeProcedure(p any, kind PKind, opts *EncodeProcedureOpts) error {
+	if kind == Unknown {
+		return errors.New(fmt.Sprintf("kind %s, set either %s or %s", Unknown, Call, Response))
+	}
+	e.buf.Reset()
+	var (
+		err         error
+		procedureID ID
+		length      int
+		msgBytes    []byte
+		header      Header
+	)
+	procedureID, err = GetProcedureID(p)
+	if err != nil {
+		return err
+	}
+	header.SetFlag(FProcedure)
+
+	v := reflect.ValueOf(p)
+	if err = e.encodeProcedure(v, procedureID, kind); err != nil {
+		return err
+	}
+	if opts != nil {
+		header.TransactionID = opts.TransactionID
+	}
+	length = e.buf.Len()
+	if length > MaxTcpMessageBodySize {
+		return errors.New(fmt.Sprintf("message body too large. length: %d max: %d", length, MaxTcpMessageBodySize))
+	}
+	msgBytes, err = e.EncodeHeader(&header, procedureID, length)
+	if err != nil {
+		return err
+	}
+	msgBytes = append(msgBytes, e.buf.Bytes()...)
+	_, err = e.writer.Write(msgBytes)
+	return err
+}
+
+func (e *Encoder) Bytes() []byte {
+	return e.buf.Bytes()
+}
+
+func (e *Encoder) EncodeHeader(h *Header, typeID ID, length int) ([]byte, error) {
 	h.Version = CurrentVersion
 	h.Type = typeID
 	h.Length = Length(length)
@@ -67,14 +113,7 @@ func (e *Encoder) EncodeHeader(h *Header, typeID TypeID, length int) ([]byte, er
 	if err := binary.Write(buf, binary.BigEndian, uint16(h.Type)); err != nil {
 		return nil, err
 	}
-	hasTransactionID := false
-	for _, b := range h.TransactionID {
-		if b != 0 {
-			hasTransactionID = true
-			break
-		}
-	}
-	if hasTransactionID {
+	if h.HasTransactionID() {
 		h.SetFlag(FTransaction)
 	}
 	if h.HasFlag(FTransaction) {
@@ -103,7 +142,7 @@ func (e *Encoder) EncodeBody(v any, l32 bool) error {
 	if kind == reflect.Ptr {
 		val = val.Elem()
 	}
-	underlyingType := getUnderlyingType(val, val.Kind())
+	underlyingType := getUnderlyingType(val, kind)
 	if val.Type() != underlyingType {
 		val = val.Convert(underlyingType)
 	}
@@ -114,12 +153,32 @@ func (e *Encoder) EncodeBody(v any, l32 bool) error {
 	return nil
 }
 
-func (e *Encoder) Bytes() []byte {
-	return e.buf.Bytes()
-}
-
-func (e *Encoder) Reset() {
-	e.buf.Reset()
+func (e *Encoder) encodeProcedure(p reflect.Value, procedureID ID, kind PKind) error {
+	t, ok := pReverseRegistry[procedureID]
+	if !ok {
+		return errors.New(fmt.Sprintf("procedure %s not registered", p.Type().Name()))
+	}
+	if err := e.encodeUint8(reflect.ValueOf(uint8(kind)), false); err != nil {
+		return err
+	}
+	if kind == Response {
+		field := p.FieldByName("Out")
+		if err := e.encodeValue(field, field.Kind(), false); err != nil {
+			return err
+		}
+		return nil
+	}
+	for i := range t.NumField() {
+		tField := t.Field(i)
+		if tField.Name == "Procedure" {
+			continue
+		}
+		field := p.FieldByName(tField.Name)
+		if err := e.encodeValue(field, field.Kind(), false); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (e *Encoder) encodeValue(val reflect.Value, kind reflect.Kind, l32 bool) error {
