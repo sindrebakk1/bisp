@@ -18,7 +18,7 @@ func TestEncodeHeader(t *testing.T) {
 	_, server := net.Pipe()
 
 	header := bisp.Header{
-		Version:       bisp.V1,
+		Version:       bisp.CurrentVersion,
 		Flags:         bisp.FError | bisp.FHuff | bisp.FTransaction,
 		Type:          1,
 		TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
@@ -135,7 +135,7 @@ func TestEncodeMessage_String(t *testing.T) {
 	assert.NoError(t, err)
 	message := &bisp.Message{
 		Header: bisp.Header{
-			Version:       bisp.V1,
+			Version:       bisp.CurrentVersion,
 			Flags:         bisp.FTransaction,
 			Type:          typeID,
 			TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
@@ -173,7 +173,7 @@ func TestEncodeMessage_32bLengths(t *testing.T) {
 	assert.NoError(t, err)
 	msg := bisp.Message{
 		Header: bisp.Header{
-			Version: bisp.V1,
+			Version: bisp.CurrentVersion,
 			Flags:   bisp.F32b | bisp.FTransaction,
 			Type:    typeID,
 			Length:  bisp.Length(len(body) + 4),

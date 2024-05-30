@@ -75,11 +75,11 @@ func registerParamTypes(t reflect.Type) {
 }
 
 func GetProcedureID(p any) (ID, error) {
-	ID, ok := pTypeRegistry[reflect.TypeOf(p)]
+	id, ok := pTypeRegistry[reflect.TypeOf(p)]
 	if !ok {
 		return 0, errors.New(fmt.Sprintf("procedure not registered: %s", reflect.TypeOf(p)))
 	}
-	return ID, nil
+	return id, nil
 }
 
 func GetProcedureFromID(id ID) (reflect.Type, error) {

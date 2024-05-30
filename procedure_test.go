@@ -366,7 +366,7 @@ func encodeTestProcedure(t *testing.T, p any, kind bisp.PKind, transaction bool)
 		}
 	}
 	header := bisp.Header{
-		Version:       bisp.V1,
+		Version:       bisp.CurrentVersion,
 		Flags:         bisp.FProcedure,
 		TransactionID: testTransactionID,
 		Type:          pID,

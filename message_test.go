@@ -277,7 +277,7 @@ func TestEncodeDecodeMessage_Struct(t *testing.T) {
 			},
 			expected: bisp.Message{
 				Header: bisp.Header{
-					Version: bisp.V1,
+					Version: bisp.CurrentVersion,
 					Type:    testStructEmbeddedPrivateStruct3ID,
 					Length:  0x3,
 				},
@@ -297,7 +297,7 @@ func TestEncodeDecodeMessage_Struct(t *testing.T) {
 			},
 			expected: bisp.Message{
 				Header: bisp.Header{
-					Version: bisp.V1,
+					Version: bisp.CurrentVersion,
 					Type:    testStructPrivateFields3ID,
 					Length:  0,
 				},
@@ -314,7 +314,7 @@ func TestEncodeDecodeMessage_Header(t *testing.T) {
 		{
 			value: bisp.Message{
 				Header: bisp.Header{
-					Version:       bisp.V1,
+					Version:       bisp.CurrentVersion,
 					Flags:         bisp.FTransaction | bisp.FError,
 					TransactionID: bisp.TransactionID(make([]byte, bisp.TransactionIDSize)),
 					Type:          0,
